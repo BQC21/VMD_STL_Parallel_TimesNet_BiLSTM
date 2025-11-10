@@ -114,8 +114,8 @@ The proposed model improved the metrics over [2], considering MAE, RMSE and R²:
 | STL – PA [TimesNet-BiLSTM]             | 5.1732  | 9.6461  | 0.9885 |
 | STL – VMD – PA [TimesNet-BiLSTM]       | 4.8068  | 8.5313  | 0.9898 |
 
-![History plot comparing predicting values with true values for a random period of time](/docs/History_plot.png)
-![Scatter plot evaluating the correlation between predicting values and true values](/docs/Scatter_plot.png)
+![History plot comparing predicting values with true values for a random period of time](/outputs/plots/History_plot.png)
+![Scatter plot evaluating the correlation between predicting values and true values](/outputs/plots/Scatter_plot.png)
 
 ## Run
 
