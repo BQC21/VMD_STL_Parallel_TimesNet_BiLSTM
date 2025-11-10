@@ -1,0 +1,69 @@
+# General configuration
+experiment:
+  name: PowerForecasting_STL_VMD
+  seed: 42
+  device: "cuda"  # "cuda" or "cpu"
+  epochs: 30
+  batch_size: 64
+  learning_rate: 0.001
+  early_stopping_patience: 30
+  scheduler_patience: 3
+  scheduler_factor: 0.5
+
+# Dataset configuration
+data:
+  root_path: "data/processed/dataset_Laundry_modified.csv"
+  target: "Active_Power"
+  sequence_length: 48
+  prediction_length: 1
+  train_split: 0.6
+  val_split: 0.2
+  test_split: 0.2
+  normalization: "minmax" 
+  shuffle: true
+
+# STL decomposition parameters
+stl:
+  enabled: true
+  period: 9 
+  robust: true
+  rolling_window: false 
+
+# VMD decomposition parameters
+vmd:
+  alpha: 0.1     # bandwidth constraint
+  tau: 0
+  k: 3        # number of modes
+  dc: 0
+  init: 1
+  tol: 1e-7
+  lambda_param: 85  # Lagrange multiplier for reconstruction constraint
+
+# Model configuration
+model:
+  name: "TimesNet_BiLSTM"
+  input_features: 11
+  output_features: 1
+
+  timesnet:
+    d_model: 32
+    d_ff: 8
+    num_kernels: 7
+    num_times_blocks: 2
+    top_k: 2
+    dropout: 0.1188
+
+  bilstm:
+    hidden_size: 32
+    layers: 3
+    bidirectional: true
+
+# Training options
+training:
+  optimizer: "adam"
+  loss_function: "mse"
+  metrics: ["mae", "rmse", "r2"]
+  checkpoint_dir: "outputs/models"
+  log_dir: "outputs/logs"
+  save_best_only: true
+  verbose: true
