@@ -84,7 +84,8 @@ K = int(VMD_CFG["k"])
 
 
 # ---- Output directories
-CKPT_DIR = os.path.join(CFG["training"]["checkpoint_dir"], f'VMD_TimesNet_BiLSTM/k{K}_alpha{VMD_CFG["alpha"]}_lambda{VMD_CFG["lambda_param"]}')
+CKPT_DIR = os.path.join(CFG["training"]["checkpoint_dir"], 
+                        f'VMD_TimesNet_BiLSTM/k{K}_alpha{VMD_CFG["alpha"]}_lambda{VMD_CFG["lambda_param"]}')
 os.makedirs(CKPT_DIR, exist_ok=True)
 
 
