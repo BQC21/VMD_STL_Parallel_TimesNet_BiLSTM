@@ -13,7 +13,7 @@ Building upon the model described in [2], I applied data-processing steps from t
 ### Components explained  
 1. **VMD** (Variational Mode Decomposition) – Extracts intrinsic signal modes.  
 2. **STL** (Seasonal-Trend decomposition using LOESS) – Separates trend, seasonality, and residuals.  
-3. **TimesNet** – Convolutional temporal network to capture multi-scale patterns.  
+3. **TimesNet** – advanced times series model to capture multi-scale patterns.  
 4. **BiLSTM** (Bidirectional Long Short-Term Memory) – Processes sequential data in both time directions for prediction.
 
 
@@ -68,7 +68,7 @@ Building upon the model described in [2], I applied data-processing steps from t
 - OS: Ubuntu 22.04  
 - RAM: 15 GB
 
-**Main frameworks**  
+**Main libraries & frameworks**  
 - PyTorch – deep learning  
 - Pandas – data management  
 - NumPy – linear algebra  
