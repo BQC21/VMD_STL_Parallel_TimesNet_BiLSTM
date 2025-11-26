@@ -1,4 +1,4 @@
-# STL - VMD - Parallel [TimesNet-BiLSTM]
+# STL - VMD - Parallel [TimesNet-BiLSTM] with Figshare dataset
 
 ----------------------------------------------------------------
 
@@ -18,48 +18,30 @@ Building upon the model described in [2], I applied data-processing steps from t
 
 
 ## Dataset  
-- Source: Desert Knowledge Australia Solar Centre (DKASC)  
-- Site: Yulara Solar System [1]
+- Source: Solar station site 8 (Nominal capacity-30MW) [1] 
 
 ### Raw data summary  
 | Attribute       | Value                     |
 |-----------------|---------------------------|
-| Sampling rate   | 5 minutes                 |
-| Size            | 949 949 rows ×15 columns  |
-| Period          | 02/04/2017 08:00:00 – 25/05/2025 08:15:00 |
+| Sampling rate   | 15 minutes                 |
+| Size            | 69408 rows × 8 columns  |
+| Period          | 01/01/2019 00:00 – 31/12/2020 23:45 |
 
 ### Features list  
-| Feature                      | Description                                | Units   |
-|------------------------------|--------------------------------------------|---------|
-| Timestamp                    | Index for processed data                    | datetime|
-| Current_Phase_Average_Mean   | Current phase average                        | A       |
-| Active_Energy_Delivered_Received | Energy exchanged in system               | kWh     |
-| Active_Power                 | Generated power from PV solar panels        | kW      |
-| Wind_Speed                   | Wind speed                                   | m/s     |
-| Weather_Temperature_Celsius  | Air temperature                              | °C      |
-| Global_Horizontal_Radiation  | Horizontal irradiation to PV panels         | W/m²   |
-| Wind_Direction               | Wind direction in degrees                    | °       |
-| Weather_Daily_Rainfall       | Daily accumulated rainfall                   | mm      |
-| Max_Wind_Speed               | Maximum wind speed                          | m/s     |
-| Air_Pressure                 | Air pressure                                | hPa     |
-| Hail_Accumulation            | Hail accumulated                            | mm      |
-| Pyranometer_1                | Horizontal radiation measured by pyranometer| W/m²   |
-| Temperature_Probe_1          | First panel temperature sensor              | °C      |
-| Temperature_Probe_2          | Second panel temperature sensor             | °C      |
+| Feature                      |  Units   |
+|------------------------------|----------|
+| Relative humidity            | %       |
+| Power                        | MW      |
+| Air temperature                | °C      |
+| Atmosphere                   | hPa     |
+| Global Horizontal irradiance | W/m²   |
+| Direct normal irradiance     | W/m²   |
+| Total solar irradiance       | W/m²   |
 
 ### Pre-processing details  
-- To comply with the public-repo requirement of [2], I replicated the original work and then extended it.  
-- Given that the dataset was downloaded in 2024, several features were rejected: *Current_Phase_Average_Mean*, *Weather_Daily_Rainfall*, *Hail_Accumulation*, *Wind_Direction*, and *Air_Pressure*.  
-- The feature *Active_Energy_Delivered_Received* was modified to only include the “Received” portion (renamed *Active_Energy_Received*).  
-- Data processing notebook: `/notebooks/Modify_data_Yulara.ipynb`  
-- Processed dataset: `/data/processed/dataset_Laundry_modified.csv`  
+- Data processing notebook: `/notebooks/Study_data_figshare.ipynb`  
+- Processed dataset: `/data/processed/dataset_figshare_modified.csv`  
 - Data split: 60 % training, 20 % validation, 20 % test
-
-### Benchmark & Replica  
-| Model                                   | Source         | MAE     | RMSE    | R²     |
-|----------------------------------------|----------------|---------|---------|--------|
-| STL – PA [TimesNet-BiLSTM]             | Paper [2]      | 5.1732  | 9.6461  | 0.9885 |
-| STL – VMD – PA [TimesNet-BiLSTM] (mine) | This work      | 4.8068  | 8.5313  | 0.9898 |
 
 ## Environment & Testing  
 **Hardware configuration**  
@@ -92,30 +74,35 @@ Building upon the model described in [2], I applied data-processing steps from t
 | k                 | Number of modes (VMD)                   | 3          |
 | λ (lambda)        | Lagrange multiplier                     | 85         |
 | num_kernels       | Number of kernels in TimesNet CNN block | 7          |
-| num_times_blocks  | Number of TimesNet blocks                | 2          |
-| top_k             | Number of significant periods            | 2          |
+| num_times_blocks  | Number of TimesNet blocks               | 2          |
+| top_k             | Number of significant periods           | 2          |
 | dropout           | Fraction of neurons dropped             | 0.1188     |
 | hidden_size       | Neurons per BiLSTM layer                | 32         |
-| layers            | Number of BiLSTM layers                  | 3          |
-| bidirectional     | Enable bidirectional flow                | true       |
-| epochs            | Training iterations                      | 30         |
-| batch_size        | Samples per batch                        | 64         |
-| learning_rate     | Learning rate                            | 0.001      |
+| layers            | Number of BiLSTM layers                 | 3          |
+| bidirectional     | Enable bidirectional flow               | true       |
+| epochs            | Training iterations                     | 30         |
+| batch_size        | Samples per batch                       | 64         |
+| learning_rate     | Learning rate                           | 0.001      |
 
 Parameters can be modified in `/configs/parameters.yaml` for new experiments.
 
 ### Outputs
 
-The proposed model improved the metrics over [2], considering MAE, RMSE and R²:
-
-
-| Model                                   | MAE     | RMSE    | R²     |
-|----------------------------------------|---------|---------|--------|
-| STL – PA [TimesNet-BiLSTM]             | 5.1732  | 9.6461  | 0.9885 |
-| STL – VMD – PA [TimesNet-BiLSTM]       | 4.8068  | 8.5313  | 0.9898 |
-
-![History plot comparing predicting values with true values for a random period of time](/outputs/plots/History_plot.png)
-![Scatter plot evaluating the correlation between predicting values and true values](/outputs/plots/Scatter_plot.png)
+### Benchmark 
+| Model                                      | MAE     | RMSE    | R²     |
+|--------------------------------------------|-------- |---------|--------|
+| BiLSTM                                     |   |   |  |
+| TimesNet                                   |   |   |  |
+| PA [TimesNet-BiLSTM]                       |   |   |  |
+| STL – BiLSTM                               |   |   |  |
+| STL – TimesNet                             |   |   |  |
+| STL – PA [TimesNet-BiLSTM]                 |   |   |  |
+| VMD-BiLSTM                                 |   |   |  |
+| VMD-TimesNet                               |   |   |  |
+| VMD-PA [TimesNet-BiLSTM]                   |   |   |  |
+| STL – VMD - BiLSTM                         |   |   |  |
+| STL – VMD - TimesNet                       |   |   |  |
+| STL – VMD – PA [TimesNet-BiLSTM] (purpose) |   |   |  |
 
 ## Run
 
@@ -141,6 +128,6 @@ python src/app/test.py
 
 ## References
 
-[1] Desert Knowledge Australia Solar Centre, “327.6kw, poly-si, fixed, 2016, laundry,” https://dkasolarcentre.com.au/source/yulara/yulara-4-fixed-laundry, 2025.
+[1] Chen, Yongbao (2021). Solar and wind power data from the Chinese State Grid Renewable Energy Generation Forecasting Competition. figshare. Dataset. https://doi.org/10.6084/m9.figshare.17304221.v4
 
 [2] J. Gong and et.al, “Parallel timesnet-bilstm model for ultra-short-term photovoltaic power forecasting using stl decomposition and auto-tuning,” Energy, vol. 320, p. 135286, 2025.

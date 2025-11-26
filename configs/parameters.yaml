@@ -25,32 +25,23 @@ data:
 # STL decomposition parameters
 stl:
   enabled: true
-  period: 9 
+  period: 7 # try other values {e.g., 7, 6}
   robust: true
   rolling_window: false 
 
-# VMD decomposition parameters
-vmd:
-  alpha: 0.1     # bandwidth constraint
-  tau: 0
-  k: 3        # number of modes
-  dc: 0
-  init: 1
-  tol: 1e-7
-  lambda_param: 85  # Lagrange multiplier for reconstruction constraint
 
 # Model configuration
 model:
   name: "TimesNet_BiLSTM"
-  input_features: 11
+  input_features: 11 # switch to 8 if STL is deactivated
   output_features: 1
 
   timesnet:
     d_model: 32
     d_ff: 8
-    num_kernels: 7
+    num_kernels: 7 
     num_times_blocks: 2
-    top_k: 2
+    top_k: 2 # try other values {e.g., 1, 2, 3, 5, 7, 8}
     dropout: 0.1188
 
   bilstm:

@@ -22,16 +22,14 @@ import torch
 import torch.nn as nn
 
 # Utils 
-from utils.helpers import build_loaders_for_imf, training_amp
+from utils.helpers import build_loaders, training_amp
+from pipeline.metrics import compute_metrics
 
 # DL model
 from models.TimesNet_BiLSTM import TimesNet_BiLSTM_Parallel
 
 # STL
 from statsmodels.tsa.seasonal import STL
-
-# VMD
-from features.vmd import VMD
 
 # Computational time
 from time import perf_counter
@@ -77,15 +75,13 @@ PRED_LEN = int(CFG["data"]["prediction_length"])
 TARGET = CFG["data"]["target"]
 CSV_PATH = CFG["data"]["root_path"]
 
-# ---- STL / VMD config
+# ---- STL config 
 STL_CFG = CFG["stl"]
-VMD_CFG = CFG["vmd"]
-K = int(VMD_CFG["k"])
 
 
 # ---- Output directories
 CKPT_DIR = os.path.join(CFG["training"]["checkpoint_dir"], 
-                        f'VMD_TimesNet_BiLSTM/k{K}_alpha{VMD_CFG["alpha"]}_lambda{VMD_CFG["lambda_param"]}')
+                        f'TimesNet_BiLSTM/period{STL_CFG["period"]}/')
 os.makedirs(CKPT_DIR, exist_ok=True)
 
 
@@ -135,10 +131,6 @@ if STL_CFG.get("enabled", True):
     df["Active_Power_Trend"]    = res.trend
     df["Active_Power_Seasonal"] = res.seasonal
     df["Active_Power_Residual"] = res.resid
-else:
-    df["Active_Power_Trend"]    = 0.0
-    df["Active_Power_Seasonal"] = 0.0
-    df["Active_Power_Residual"] = df[TARGET].values
 
 
 ##################################
@@ -153,100 +145,77 @@ signal_4  = df['Pyranometer_1']
 signal_5  = df['Temperature_Probe_1']
 signal_6  = df['Temperature_Probe_2']
 signal_7  = df['Active_Energy_Received']
-signal_8  = df['Active_Power_Trend']
-signal_9  = df['Active_Power_Seasonal']
-signal_10 = df['Active_Power_Residual']
-signal_11 = df['Active_Power']
 
-SIGNALS = [
-    signal_0, signal_1, signal_2, signal_3, signal_4, signal_5,
-    signal_6, signal_7, signal_8, signal_9, signal_10, signal_11
-]
-SIGNAL_NAMES = [
-    'Wind_Speed', 'Weather_Temperature_Celsius', 'Global_Horizontal_Radiation',
-    'Max_Wind_Speed', 'Pyranometer_1', 'Temperature_Probe_1', 'Temperature_Probe_2',
-    'Active_Energy_Received', 'Active_Power_Trend', 'Active_Power_Seasonal',
-    'Active_Power_Residual', 'Active_Power'
-]
+if STL_CFG.get("enabled", True):
+    signal_8  = df['Active_Power_Trend']
+    signal_9  = df['Active_Power_Seasonal']
+    signal_10 = df['Active_Power_Residual']
+    signal_11 = df['Active_Power']
 
-##################################
-# 4) VMD per signal
-##################################
+    SIGNALS = [
+        signal_0, signal_1, signal_2, signal_3, signal_4, signal_5,
+        signal_6, signal_7, signal_8, signal_9, signal_10, signal_11
+    ]
+    SIGNAL_NAMES = [
+        'Wind_Speed', 'Weather_Temperature_Celsius', 'Global_Horizontal_Radiation',
+        'Max_Wind_Speed', 'Pyranometer_1', 'Temperature_Probe_1', 'Temperature_Probe_2',
+        'Active_Energy_Received', 'Active_Power_Trend', 'Active_Power_Seasonal',
+        'Active_Power_Residual', 'Active_Power'
+    ]
+else:
+    signal_8 = df['Active_Power']
 
-alpha = float(VMD_CFG["alpha"])
-tau   = float(VMD_CFG["tau"])
-DC    = bool(VMD_CFG["dc"])
-init  = int(VMD_CFG["init"])
-tol   = float(VMD_CFG["tol"])
-lambda_param = float(VMD_CFG.get("lambda_param", 0))
+    SIGNALS = [
+        signal_0, signal_1, signal_2, signal_3, signal_4, signal_5,
+        signal_6, signal_7, signal_8
+    ]
+    SIGNAL_NAMES = [
+        'Wind_Speed', 'Weather_Temperature_Celsius', 'Global_Horizontal_Radiation',
+        'Max_Wind_Speed', 'Pyranometer_1', 'Temperature_Probe_1', 'Temperature_Probe_2',
+        'Active_Energy_Received', 'Active_Power'
+    ]
 
-u_all = []  # list of arrays (K, N) per signal
-
-for sig_idx, signal in enumerate(SIGNALS):
-    print(f"Processing signal: {SIGNAL_NAMES[sig_idx]}")
-    u_signal, _, _ = VMD(signal, alpha, tau, K, DC, init, tol, lambda_param)
-    # u_signal typically comes as (N, K) or similar → normalize to (K, N)
-    u_signal = np.array(u_signal).T if np.array(u_signal).shape[0] != K else np.array(u_signal)
-    u_all.append(u_signal)
-    print(f"Completed VMD for signal: {SIGNAL_NAMES[sig_idx]}")
-
-print("VMD processing completed for all signals.")
-print(f"Total signals processed: {len(SIGNALS)}")
-print(f"Shape example u_all[0]: {np.array(u_all[0]).shape}")  # (K, N)
 
 ##################################
-# 5) Training per IMF
+# 4) Training
 ##################################
 
 loss_fn = nn.MSELoss()
 scaler = torch.cuda.amp.GradScaler(enabled=(DEVICE.type == 'cuda'))
 
-models = []
-tiempos_imf = []
+tqdm.write(f"\n=== Training ===")
+t0 = perf_counter()
 
-for idx in range(K):
-    imf_col = f"mode{idx}"
+Y_pred_total = np.zeros(int(0.2*len(df)-SEQ_LEN-PRED_LEN+1)) 
+Y_real_total = np.zeros(int(0.2*len(df)-SEQ_LEN-PRED_LEN+1))
+print(f"Initial Y_total shape: {Y_pred_total.shape}")
+print(f"Initial Y_real_total shape: {Y_real_total.shape}")
 
-    # build dataframe for this IMF
-    modes_df = pd.DataFrame({
-        f"{SIGNAL_NAMES[sig_idx]}_{imf_col}": u_all[sig_idx][idx, :]
-        for sig_idx in range(len(SIGNALS))
-    })
+# Load sequences
+train_dl, val_dl, test_dl, __, __ = build_loaders(
+    df=df, seq_len=SEQ_LEN, pred_len=PRED_LEN, batch=BATCH_SIZE
+)
 
-    tqdm.write(f"\n=== Training {imf_col} ===")
-    t0_imf = perf_counter()
+# Model + optimizer
+model = TimesNet_BiLSTM_Parallel(configs=cast(Any, MODEL_CFG)).to(DEVICE)
+optim = torch.optim.Adam(model.parameters(), lr=LR, weight_decay=1e-4)
+model_path = os.path.join(CKPT_DIR, f"TimesNet_BiLSTM_best_model.pt")
 
-    # Load sequences
-    train_dl, val_dl, test_dl, y_scaler, n_val_seq = build_loaders_for_imf(
-        df=modes_df, imf_col=imf_col,
-        seq_len=SEQ_LEN, pred_len=PRED_LEN, batch=BATCH_SIZE
-    )
+# Training with AMP + early stopping
+__, __, stats_t, vt, vp = training_amp(
+    model=model, device=str(DEVICE), 
+    loss_fn=loss_fn, scaler=scaler,
+    optim=optim, train_dl=train_dl, val_dl=val_dl,
+    MODEL_PATH=model_path, df = df, 
+    seq_len=SEQ_LEN, pred_len=PRED_LEN,
+    patience=PATIENCE_ES, verbose=True
+)
 
-    # Model + optimizer
-    model_i = TimesNet_BiLSTM_Parallel(configs=cast(Any, MODEL_CFG)).to(DEVICE)
-    optim_i = torch.optim.Adam(model_i.parameters(), lr=LR, weight_decay=1e-4)
-    model_path = os.path.join(CKPT_DIR, f"model_imf_{idx}.pt")
+print(f"shapes of true and predicted values: {vt.shape}, {vp.shape}")
+# Computer metrics (RMSE)
+__, __, RMSE = compute_metrics(vt, vp)
+tqdm.write(f"RMSE: {RMSE:.4f}")
 
-    # Training with AMP + early stopping
-    _lt, _lv, stats_t = training_amp(
-        model=model_i, device=str(DEVICE), loss_fn=loss_fn, scaler=scaler,
-        optim=optim_i, train_dl=train_dl, val_dl=val_dl,
-        MODEL_PATH=model_path, epochs=EPOCHS, patience=PATIENCE_ES, verbose=True
-    )
-
-    # Plot losses (optional)
-    # try:
-    #     plot_losses(_lt, _lv, imf_col=imf_col)
-    # except Exception as e:
-    #     print(f"Warning: could not plot losses for {imf_col}: {e}")
-    models.append(model_i)
-
-    t_imf = perf_counter() - t0_imf
-    tiempos_imf.append(t_imf)
-    tqdm.write(f"[{imf_col}] Total time ={t_imf:.2f}s | epoch_avg={stats_t.get('epoch_avg_s', np.nan):.2f}s | val_avg={stats_t.get('val_avg_s', np.nan):.2f}s")
-
-# Summary times per IMF
-tqdm.write("\n=== Summary times per IMF ===")
-for i, t in enumerate(tiempos_imf):
-    tqdm.write(f"IMF_{i}: {t:.2f}s")
-tqdm.write(f"Total time (all IMFs): {sum(tiempos_imf):.2f}s")
+# Summary times 
+t_final = perf_counter() - t0
+tqdm.write(f"[Total time ={t_final:.2f}s | epoch_avg={stats_t.get('epoch_avg_s', np.nan):.2f}s | val_avg={stats_t.get('val_avg_s', np.nan):.2f}s")

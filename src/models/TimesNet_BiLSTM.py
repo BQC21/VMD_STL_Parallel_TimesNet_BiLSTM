@@ -29,8 +29,8 @@ def FFT_for_Period(x, k=2):
     """
     x: [B, T, C] float tensor (in d_model)
     Outputs:
-      period_list: np.array of shape [k] with periods (int >=1)
-      period_weight: [B, k] average amplitudes per sample in the top k frequencies
+    period_list: np.array of shape [k] with periods (int >=1)
+    period_weight: [B, k] average amplitudes per sample in the top k frequencies
     """
     # FFT in temporal dimension
     xf = torch.fft.rfft(x, dim=1)  # [B, T//2+1, C] in complex magnitude

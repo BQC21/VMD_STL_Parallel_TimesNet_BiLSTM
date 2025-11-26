@@ -3,6 +3,7 @@
 ##################################
 
 import os, sys, warnings, yaml
+
 warnings.filterwarnings("ignore")
 
 # Make imports work whether this file is run as a script or as a module.
@@ -27,14 +28,12 @@ import torch.nn as nn
 from torch.cuda.amp import autocast
 
 # ==== local imports ====
-from src.utils.helpers import build_loaders_for_imf
+from src.utils.helpers import build_loaders
 from src.visualization.plots import visualize, scatter
 from src.pipeline.metrics import compute_metrics
 
 from src.models.TimesNet_BiLSTM import TimesNet_BiLSTM_Parallel
 from statsmodels.tsa.seasonal import STL
-from src.features.vmd import VMD
-
 
 # =========================================================
 # Settings
@@ -49,14 +48,14 @@ PRED_LEN = int(CFG["data"]["prediction_length"])
 TARGET = CFG["data"]["target"]
 CSV_PATH = CFG["data"]["root_path"]
 
-STL_CFG = CFG["stl"]
-VMD_CFG = CFG["vmd"]
-K = int(VMD_CFG["k"])
+LR          = float(CFG["experiment"]["learning_rate"])
+BATCH_SIZE  = int(CFG["experiment"]["batch_size"])
 
-CKPT_DIR = os.path.join(
-    CFG["training"]["checkpoint_dir"],
-    f'VMD_TimesNet_BiLSTM/k{K}_alpha{VMD_CFG["alpha"]}_lambda{VMD_CFG["lambda_param"]}'
-)
+STL_CFG = CFG["stl"]
+
+# ---- Output directories
+CKPT_DIR = os.path.join(CFG["training"]["checkpoint_dir"], 
+                        f'TimesNet_BiLSTM/period{STL_CFG["period"]}/')
 PLOTS_DIR = os.path.join("outputs", "plots")
 os.makedirs(PLOTS_DIR, exist_ok=True)
 
@@ -92,75 +91,94 @@ def build_model_cfg(cfg_yaml: dict) -> SimpleNamespace:
 MODEL_CFG = build_model_cfg(CFG)
 
 
-# =========================================================
-# 1. Load dataset
-# =========================================================
+##################################
+# 1) Load dataset
+##################################
+
 df = pd.read_csv(CSV_PATH)
 assert TARGET in df.columns, f"TARGET '{TARGET}' not found in {CSV_PATH}"
-print(f"Dataset loaded: {df.shape}")
+
+##################################
+# 2) STL (optional, according to config)
+##################################
 
 if STL_CFG.get("enabled", True):
+    # Note: by default calculates STL on the entire series (without rolling).
+    # If you want to avoid strict leakage, implement rolling/block in helpers.
     stl = STL(df[TARGET], period=int(STL_CFG["period"]), robust=bool(STL_CFG["robust"]))
     res = stl.fit()
     df["Active_Power_Trend"]    = res.trend
     df["Active_Power_Seasonal"] = res.seasonal
     df["Active_Power_Residual"] = res.resid
+
+
+##################################
+# 3) Build base signals (12 in total)
+##################################
+
+signal_0  = df['Wind_Speed']
+signal_1  = df['Weather_Temperature_Celsius']
+signal_2  = df['Global_Horizontal_Radiation']
+signal_3  = df['Max_Wind_Speed']
+signal_4  = df['Pyranometer_1']
+signal_5  = df['Temperature_Probe_1']
+signal_6  = df['Temperature_Probe_2']
+signal_7  = df['Active_Energy_Received']
+
+if STL_CFG.get("enabled", True):
+    signal_8  = df['Active_Power_Trend']
+    signal_9  = df['Active_Power_Seasonal']
+    signal_10 = df['Active_Power_Residual']
+    signal_11 = df['Active_Power']
+
+    SIGNALS = [
+        signal_0, signal_1, signal_2, signal_3, signal_4, signal_5,
+        signal_6, signal_7, signal_8, signal_9, signal_10, signal_11
+    ]
+    SIGNAL_NAMES = [
+        'Wind_Speed', 'Weather_Temperature_Celsius', 'Global_Horizontal_Radiation',
+        'Max_Wind_Speed', 'Pyranometer_1', 'Temperature_Probe_1', 'Temperature_Probe_2',
+        'Active_Energy_Received', 'Active_Power_Trend', 'Active_Power_Seasonal',
+        'Active_Power_Residual', 'Active_Power'
+    ]
 else:
-    df["Active_Power_Trend"]    = 0.0
-    df["Active_Power_Seasonal"] = 0.0
-    df["Active_Power_Residual"] = df[TARGET].values
+    signal_8 = df['Active_Power']
 
-# =========================================================
-# 2. Base signals
-# =========================================================
-SIGNALS = [
-    df['Wind_Speed'],
-    df['Weather_Temperature_Celsius'],
-    df['Global_Horizontal_Radiation'],
-    df['Max_Wind_Speed'],
-    df['Pyranometer_1'],
-    df['Temperature_Probe_1'],
-    df['Temperature_Probe_2'],
-    df['Active_Energy_Received'],
-    df['Active_Power_Trend'],
-    df['Active_Power_Seasonal'],
-    df['Active_Power_Residual'],
-    df['Active_Power'],
-]
-SIGNAL_NAMES = [
-    'Wind_Speed', 'Weather_Temperature_Celsius', 'Global_Horizontal_Radiation',
-    'Max_Wind_Speed', 'Pyranometer_1', 'Temperature_Probe_1', 'Temperature_Probe_2',
-    'Active_Energy_Received', 'Active_Power_Trend', 'Active_Power_Seasonal',
-    'Active_Power_Residual', 'Active_Power'
-]
-
-# =========================================================
-# 3. VMD decomposition
-# =========================================================
-
-alpha = float(VMD_CFG["alpha"])
-tau   = float(VMD_CFG["tau"])
-DC    = bool(VMD_CFG["dc"])
-init  = int(VMD_CFG["init"])
-tol   = float(VMD_CFG["tol"])
-lambda_param = float(VMD_CFG.get("lambda_param", 0))
-
-u_all = []
-for sig_idx, signal in enumerate(SIGNALS):
-    print(f"VMD → {SIGNAL_NAMES[sig_idx]}")
-    u_signal, _, _ = VMD(signal, alpha, tau, K, DC, init, tol, lambda_param)
-    u_signal = np.array(u_signal)
-    if u_signal.shape[0] != K and u_signal.shape[1] == K:
-        u_signal = u_signal.T
-    assert u_signal.shape[0] == K, f"Unexpected IMF shape for {SIGNAL_NAMES[sig_idx]}"
-    u_all.append(u_signal)
-
-print("VMD complete. Example:", u_all[0].shape)
+    SIGNALS = [
+        signal_0, signal_1, signal_2, signal_3, signal_4, signal_5,
+        signal_6, signal_7, signal_8
+    ]
+    SIGNAL_NAMES = [
+        'Wind_Speed', 'Weather_Temperature_Celsius', 'Global_Horizontal_Radiation',
+        'Max_Wind_Speed', 'Pyranometer_1', 'Temperature_Probe_1', 'Temperature_Probe_2',
+        'Active_Energy_Received', 'Active_Power'
+    ]
 
 
-# =========================================================
-# 4. PREDICTION PER IMF
-# =========================================================
+
+##################################
+# 4) Training per IMF
+##################################
+
+loss_fn = nn.MSELoss()
+scaler = torch.cuda.amp.GradScaler(enabled=(DEVICE.type == 'cuda'))
+
+
+# Load sequences
+train_dl, val_dl, test_dl, y_scaler, n_val_seq = build_loaders(
+    df=df, seq_len=SEQ_LEN, pred_len=PRED_LEN, batch=BATCH_SIZE
+)
+
+# Model + optimizer
+model = TimesNet_BiLSTM_Parallel(configs=cast(Any, MODEL_CFG)).to(DEVICE)
+optim = torch.optim.Adam(model.parameters(), lr=LR, weight_decay=1e-4)
+
+model_path = os.path.join(CKPT_DIR, f"TimesNet_BiLSTM_best_model.pt")
+model.load_state_dict(torch.load(model_path, 
+                                map_location=DEVICE))
+model.eval()
+
+# prediction
 def predict_loader(model, dl, device):
     model.eval()
     preds, trues = [], []
@@ -174,90 +192,28 @@ def predict_loader(model, dl, device):
     return np.concatenate(preds, axis=0), np.concatenate(trues, axis=0)
 
 
-sum_preds_inv = None
-y_true_inv_ref = None
-per_imf_metrics = []
+y_pred, y_true = predict_loader(model, test_dl, DEVICE)
+y_pred_inv = y_scaler.inverse_transform(y_pred.reshape(-1, 1)).ravel()
+y_true_inv = y_scaler.inverse_transform(y_true.reshape(-1, 1)).ravel()
+print(f"shapes of true and predicted values: {y_true_inv.shape}, {y_pred_inv.shape}")
 
-t0 = perf_counter()
+# =================================================
+# 5. METRICS    
+# =================================================
+# Compute metrics on the denormalized (original-scale) values
+final_R2, final_MAE, final_RMSE = compute_metrics(y_true_inv, y_pred_inv)
 
-for idx in range(K):
-    imf_col = f"mode{idx}"
-
-    # build dataframe for this IMF
-    modes_df = pd.DataFrame({
-        f"{SIGNAL_NAMES[sig_idx]}_{imf_col}": u_all[sig_idx][idx, :]
-        for sig_idx in range(len(SIGNALS))
-    })
-
-    _, _, test_dl, y_scaler, _ = build_loaders_for_imf(
-        df=modes_df, imf_col=imf_col,
-        seq_len=SEQ_LEN, pred_len=PRED_LEN, batch=int(CFG["experiment"]["batch_size"])
-    )
-
-    # load model
-    model_i = TimesNet_BiLSTM_Parallel(configs=cast(Any, MODEL_CFG)).to(DEVICE)
-    ckpt_path = os.path.join(CKPT_DIR, f"model_imf_{idx}.pt")
-    if not os.path.exists(ckpt_path):
-        raise FileNotFoundError(f"No checkpoint found: {ckpt_path}")
-    model_i.load_state_dict(torch.load(ckpt_path, map_location=DEVICE))
-    model_i.eval()
-
-    # prediction
-    y_pred, y_true = predict_loader(model_i, test_dl, DEVICE)
-    y_pred_inv = y_scaler.inverse_transform(y_pred.reshape(-1, 1)).ravel()
-    y_true_inv = y_scaler.inverse_transform(y_true.reshape(-1, 1)).ravel()
-
-    # Individual IMF metrics
-    R2, MAE, RMSE = compute_metrics(y_true_inv, y_pred_inv)
-    per_imf_metrics.append({
-        "IMF": idx,
-        "MAE": MAE,
-        "RMSE": RMSE,
-        "R2": R2,
-        "n": len(y_true_inv)
-    })
-
-    # # plots for this IMF (optional)
-    # try:
-    #     visualize(days=3, tt_inv=y_true_inv, tp_inv=y_pred_inv, TARGET=f"IMF_{idx}")
-    #     plt_path = os.path.join(PLOTS_DIR, f"IMF_{idx}_series.png")
-    #     scatter(y_true_inv, y_pred_inv)
-    #     plt_scatter = os.path.join(PLOTS_DIR, f"IMF_{idx}_scatter.png")
-    #     print(f"Saved plots: {plt_path}, {plt_scatter}")
-    # except Exception as e:
-    #     print(f"warning: Plots could not be generated for IMF_{idx}: {e}")
-
-    # Reconstruct sum
-    if sum_preds_inv is None:
-        sum_preds_inv = y_pred_inv.copy()
-        y_true_inv_ref = y_true_inv.copy()
-    else:
-        n = min(len(sum_preds_inv), len(y_pred_inv))
-        sum_preds_inv[:n] += y_pred_inv[:n]
-        y_true_inv_ref = y_true_inv_ref[:n]
-
-# =========================================================
-# 5. METRICS 
-# =========================================================
-final_R2, final_MAE, final_RMSE = compute_metrics(y_true_inv_ref, sum_preds_inv)
-
-print("\n=== MMetrics per IMF ===")
-for m in per_imf_metrics:
-    print(f"IMF_{m['IMF']}: MAE={m['MAE']:.4f} | RMSE={m['RMSE']:.4f} | R2={m['R2']:.4f} | n={m['n']}")
-
-print("\n=== FINAL METRICS (Sum of IMFs, real scale) ===")
+print("\n=== FINAL METRICS ===")
 print(f"MAE : {final_MAE:.6f}")
 print(f"RMSE: {final_RMSE:.6f}")
 print(f"R²  : {final_R2:.6f}")
 
 # Plot total prediction (saving optional)
 try:
-    visualize(days=4, tt_inv=y_true_inv_ref, tp_inv=sum_preds_inv, TARGET="Reconstructed_Sum")
+    visualize(days=4, tt_inv=y_true_inv, tp_inv=y_pred_inv, TARGET="Reconstructed_Sum")
     # plt_recon = os.path.join(PLOTS_DIR, "Reconstructed_Sum_series.png")
-    scatter(y_true_inv_ref, sum_preds_inv)
+    scatter(y_true_inv, y_pred_inv)
     # plt_recon_scatter = os.path.join(PLOTS_DIR, "Reconstructed_Sum_scatter.png")
     # print(f"Final plots saved: {plt_recon}, {plt_recon_scatter}")
 except Exception as e:
     print(f"Warning: final plots could not be generated: {e}")
-
-print(f"\nProcess completed in {perf_counter() - t0:.2f}s")
