@@ -195,11 +195,19 @@ class BiLSTM(nn.Module):
             bidirectional=configs.bidirectional,
             dropout=configs.dropout
         )
+        # projection to desired number of targets (final output)
+        num_directions = 2 if configs.bidirectional else 1
+        self.out_proj = nn.Linear(configs.hidden * num_directions, configs.n_targets)
 
-    def forward(self, x):
-        # out -> [B, L, hidden * num_directions]
-        out, _ = self.lstm(x)
-        return out
+    def forward(self, x, return_sequence: bool = False):
+        # x: [B, L, N_in]
+        # LSTM returns (output, (h_n, c_n)) where output -> [B, L, hidden * num_directions]
+        out, (h_n, c_n) = self.lstm(x)
+        if return_sequence:
+            return out
+        # take last timestep from sequence outputs as representation
+        last = out[:, -1, :]
+        return self.out_proj(last)
 
 ##### Parallel model #####
         
@@ -234,7 +242,7 @@ class TimesNet_BiLSTM_Parallel(nn.Module):
         # both branches receive the SAME x: [B, L, N_in]
         # print(f"x shape en Parallel model: {x.shape}")
         out1_last = self.times.forward_features(x)   # [B, d_model]
-        out2_seq  = self.bilstm(x)                   # [B, L, H*D]
+        out2_seq  = self.bilstm(x, return_sequence=True)  # [B, L, H*D]
         out2_last = out2_seq[:, -1, :]               # [B, H*D]
         x_concat  = torch.cat([out1_last, out2_last], dim=-1)  # [B, d_model+H*D]
         y = self.head(x_concat).view(x.size(0), -1)  # [B, n_targets]

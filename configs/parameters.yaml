@@ -13,7 +13,7 @@ experiment:
 # Dataset configuration
 data:
   # root_path: "data/processed/dataset_Laundry_modified.csv"
-  root_path: "data/processed/dataset_figshare_processed.csv"
+  root_path: "data/dataset_figshare_processed.csv"
   # target: "Active_Power" # for Yulara
   target: "Power (MW)" # for figshare
   sequence_length: 48
@@ -57,5 +57,6 @@ training:
   loss_function: "mse"
   metrics: ["mae", "rmse", "r2"]
   checkpoint_dir: "outputs/models"
+  model_dir: "TimesNet_BiLSTM"
   save_best_only: true
   verbose: true

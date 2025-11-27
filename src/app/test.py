@@ -32,7 +32,7 @@ from src.utils.helpers import build_loaders
 from src.visualization.plots import visualize, scatter
 from src.pipeline.metrics import compute_metrics
 
-from src.models.TimesNet_BiLSTM import TimesNet_BiLSTM_Parallel
+from models.TimesNet_BiLSTM import TimesNet_BiLSTM_Parallel, BiLSTM, TimesNet
 from statsmodels.tsa.seasonal import STL
 
 # =========================================================
@@ -55,14 +55,12 @@ STL_CFG = CFG["stl"]
 
 # ---- Output directories
 CKPT_DIR = os.path.join(CFG["training"]["checkpoint_dir"], 
-                        f'TimesNet_BiLSTM/period{STL_CFG["period"]}/')
-PLOTS_DIR = os.path.join("outputs", "plots")
-os.makedirs(PLOTS_DIR, exist_ok=True)
+                        CFG["training"]["model_dir"])
+os.makedirs(CKPT_DIR, exist_ok=True)
 
 print(f"==> Config loaded from {CONFIG_PATH}")
 print(f"Device: {DEVICE}")
 print(f"Checkpoints: {CKPT_DIR}")
-print(f"Plots: {PLOTS_DIR}")
 
 
 # =========================================================
@@ -116,48 +114,38 @@ if STL_CFG.get("enabled", True):
 # 3) Build base signals (12 in total)
 ##################################
 
-signal_0  = df['Wind_Speed']
-signal_1  = df['Weather_Temperature_Celsius']
-signal_2  = df['Global_Horizontal_Radiation']
-signal_3  = df['Max_Wind_Speed']
-signal_4  = df['Pyranometer_1']
-signal_5  = df['Temperature_Probe_1']
-signal_6  = df['Temperature_Probe_2']
-signal_7  = df['Active_Energy_Received']
+signal_0  = df['Total solar irradiance (W/m2)']
+signal_1  = df['Air temperature  (°C) ']
+signal_2  = df['Relative humidity (%)']
 
 if STL_CFG.get("enabled", True):
-    signal_8  = df['Active_Power_Trend']
-    signal_9  = df['Active_Power_Seasonal']
-    signal_10 = df['Active_Power_Residual']
-    signal_11 = df['Active_Power']
+    signal_3  = df['Active_Power_Trend']
+    signal_4  = df['Active_Power_Seasonal']
+    signal_5 = df['Active_Power_Residual']
+    signal_6 = df[TARGET]
 
     SIGNALS = [
-        signal_0, signal_1, signal_2, signal_3, signal_4, signal_5,
-        signal_6, signal_7, signal_8, signal_9, signal_10, signal_11
+        signal_0, signal_1, signal_2, signal_3, signal_4, signal_5, signal_6
     ]
     SIGNAL_NAMES = [
-        'Wind_Speed', 'Weather_Temperature_Celsius', 'Global_Horizontal_Radiation',
-        'Max_Wind_Speed', 'Pyranometer_1', 'Temperature_Probe_1', 'Temperature_Probe_2',
-        'Active_Energy_Received', 'Active_Power_Trend', 'Active_Power_Seasonal',
-        'Active_Power_Residual', 'Active_Power'
+        'Total solar irradiance (W/m2)', 'Air temperature  (°C) ', 'Relative humidity (%)',
+        'Active_Power_Trend', 'Active_Power_Seasonal','Active_Power_Residual', 'Power (MW)'
     ]
 else:
-    signal_8 = df['Active_Power']
+    signal_3 = df['Active_Power']
 
     SIGNALS = [
-        signal_0, signal_1, signal_2, signal_3, signal_4, signal_5,
-        signal_6, signal_7, signal_8
+        signal_0, signal_1, signal_2, signal_3
     ]
     SIGNAL_NAMES = [
-        'Wind_Speed', 'Weather_Temperature_Celsius', 'Global_Horizontal_Radiation',
-        'Max_Wind_Speed', 'Pyranometer_1', 'Temperature_Probe_1', 'Temperature_Probe_2',
-        'Active_Energy_Received', 'Active_Power'
+        'Total solar irradiance (W/m2)', 'Air temperature (°C)', 
+        'Relative humidity (%)', 'Power (MW)'
     ]
 
 
 
 ##################################
-# 4) Training per IMF
+# 4) Testing
 ##################################
 
 loss_fn = nn.MSELoss()
@@ -170,6 +158,8 @@ train_dl, val_dl, test_dl, y_scaler, n_val_seq = build_loaders(
 )
 
 # Model + optimizer
+# model = BiLSTM(configs=cast(Any, MODEL_CFG)).to(DEVICE)
+# model = TimesNet(configs=cast(Any, MODEL_CFG)).to(DEVICE)
 model = TimesNet_BiLSTM_Parallel(configs=cast(Any, MODEL_CFG)).to(DEVICE)
 optim = torch.optim.Adam(model.parameters(), lr=LR, weight_decay=1e-4)
 
@@ -197,11 +187,20 @@ y_pred_inv = y_scaler.inverse_transform(y_pred.reshape(-1, 1)).ravel()
 y_true_inv = y_scaler.inverse_transform(y_true.reshape(-1, 1)).ravel()
 print(f"shapes of true and predicted values: {y_true_inv.shape}, {y_pred_inv.shape}")
 
+abs_errors = np.abs(y_true_inv - y_pred_inv)
+squared_errors = (y_true_inv - y_pred_inv)**2
+excel_file_path = "/home/brakine/VMD_STL_Parallel_TimesNet_BiLSTM_POWERFORECASTING/outputs/logs/TimesNet_BiLSTM/Predictions_TimesNet_BiLSTM_test.xlsx"
+df_results = pd.DataFrame({'True_Values': y_true_inv,
+                            'Predicted_Values': y_pred_inv,
+                            'Absolute_Error': abs_errors,
+                            'Squared_Error': squared_errors})
+df_results.to_excel(excel_file_path, index=False)
+
 # =================================================
 # 5. METRICS    
 # =================================================
 # Compute metrics on the denormalized (original-scale) values
-final_R2, final_MAE, final_RMSE = compute_metrics(y_true_inv, y_pred_inv)
+final_R2, final_MAE, final_RMSE = compute_metrics(y_true=y_true_inv, y_pred=y_pred_inv)
 
 print("\n=== FINAL METRICS ===")
 print(f"MAE : {final_MAE:.6f}")
@@ -210,7 +209,7 @@ print(f"R²  : {final_R2:.6f}")
 
 # Plot total prediction (saving optional)
 try:
-    visualize(days=4, tt_inv=y_true_inv, tp_inv=y_pred_inv, TARGET="Reconstructed_Sum")
+    visualize(days=1, tt_inv=y_true_inv, tp_inv=y_pred_inv, TARGET="Power (MW)")
     # plt_recon = os.path.join(PLOTS_DIR, "Reconstructed_Sum_series.png")
     scatter(y_true_inv, y_pred_inv)
     # plt_recon_scatter = os.path.join(PLOTS_DIR, "Reconstructed_Sum_scatter.png")

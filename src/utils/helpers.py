@@ -37,14 +37,14 @@ def make_sequences(X, y, seq_len=48, pred_len=1):
 def build_loaders(df, seq_len=48, pred_len=1, batch=64):
 
     """
-    Create Dataloaders for training, validation and testing for a given IMF column.
+    Create Dataloaders for training, validation and testing
     """
     n = len(df)
     n_train = int(round(0.6 * n))
     n_val = int(round(0.8 * n))
-    print(f"Dataset size: train={n_train} | val={n-n_val} | test={n - (n_val+n_train)}")
+    print(f"Dataset size: train={n_train} | val={n_val - n_train} | test={n - n_val}")
 
-    target_col = f"Active_Power"
+    target_col = f"Power (MW)"
     features = [c for c in df.columns if c != target_col]
 
     FEATURES_train = df[features][:n_train]
