@@ -132,7 +132,7 @@ if STL_CFG.get("enabled", True):
         'Active_Power_Trend', 'Active_Power_Seasonal','Active_Power_Residual', 'Power (MW)'
     ]
 else:
-    signal_3 = df['Active_Power']
+    signal_3 = df['Power (MW)']
 
     SIGNALS = [
         signal_0, signal_1, signal_2, signal_3
@@ -159,11 +159,11 @@ train_dl, val_dl, test_dl, y_scaler, n_val_seq = build_loaders(
 
 # Model + optimizer
 # model = BiLSTM(configs=cast(Any, MODEL_CFG)).to(DEVICE)
-# model = TimesNet(configs=cast(Any, MODEL_CFG)).to(DEVICE)
-model = TimesNet_BiLSTM_Parallel(configs=cast(Any, MODEL_CFG)).to(DEVICE)
+model = TimesNet(configs=cast(Any, MODEL_CFG)).to(DEVICE)
+# model = TimesNet_BiLSTM_Parallel(configs=cast(Any, MODEL_CFG)).to(DEVICE)
 optim = torch.optim.Adam(model.parameters(), lr=LR, weight_decay=1e-4)
 
-model_path = os.path.join(CKPT_DIR, f"TimesNet_BiLSTM_best_model.pt")
+model_path = os.path.join(CKPT_DIR, f"TimesNet_best_model.pt")
 model.load_state_dict(torch.load(model_path, 
                                 map_location=DEVICE))
 model.eval()
@@ -189,7 +189,7 @@ print(f"shapes of true and predicted values: {y_true_inv.shape}, {y_pred_inv.sha
 
 abs_errors = np.abs(y_true_inv - y_pred_inv)
 squared_errors = (y_true_inv - y_pred_inv)**2
-excel_file_path = "/home/brakine/VMD_STL_Parallel_TimesNet_BiLSTM_POWERFORECASTING/outputs/logs/TimesNet_BiLSTM/Predictions_TimesNet_BiLSTM_test.xlsx"
+excel_file_path = "/home/brakine/VMD_STL_Parallel_TimesNet_BiLSTM_POWERFORECASTING/outputs/logs/TimesNet/Predictions_TimesNet_test.xlsx"
 df_results = pd.DataFrame({'True_Values': y_true_inv,
                             'Predicted_Values': y_pred_inv,
                             'Absolute_Error': abs_errors,

@@ -26,7 +26,7 @@ data:
 
 # STL decomposition parameters
 stl:
-  enabled: true # False to not use STL
+  enabled: False # False to not use STL
   period: 9 
   robust: true
   rolling_window: false 
@@ -35,7 +35,7 @@ stl:
 # Model configuration
 model:
   name: "TimesNet_BiLSTM"
-  input_features: 6 # switch to 3 if STL is deactivated
+  input_features: 3 # switch to 3 if STL is deactivated
   output_features: 1
 
   timesnet:
@@ -57,6 +57,6 @@ training:
   loss_function: "mse"
   metrics: ["mae", "rmse", "r2"]
   checkpoint_dir: "outputs/models"
-  model_dir: "TimesNet_BiLSTM"
+  model_dir: "TimesNet"
   save_best_only: true
   verbose: true
