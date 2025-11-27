@@ -23,8 +23,6 @@ This project implements a deep learning model to forecast the **active power** g
 | Power                        | MW      |
 | Air temperature                | °C      |
 | Atmosphere                   | hPa     |
-| Global Horizontal irradiance | W/m²   |
-| Direct normal irradiance     | W/m²   |
 | Total solar irradiance       | W/m²   |
 
 ### Pre-processing details  
