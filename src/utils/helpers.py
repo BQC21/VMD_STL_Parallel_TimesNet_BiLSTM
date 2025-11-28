@@ -34,8 +34,47 @@ def make_sequences(X, y, seq_len=48, pred_len=1):
     return np.array(Xs), np.array(ys)
 
 # Processing
+def build_loaders(df, seq_len=48, pred_len=1, batch=64):
+
+    """
+    Create Dataloaders for training, validation and testing
+    """
+    n = len(df)
+    n_train = int(round(0.6 * n))
+    n_val = int(round(0.8 * n))
+    print(f"Dataset size: train={n_train} | val={n_val - n_train} | test={n - n_val}")
+
+    target_col = f"Power (MW)"
+    features = [c for c in df.columns if c != target_col]
+
+    FEATURES_train = df[features][:n_train]
+    FEATURES_valid = df[features][n_train:n_val]
+    FEATURES_test = df[features][n_val:]
+
+    scaler_x = StandardScaler()
+    scaler_y = MinMaxScaler() 
+
+    X_train = scaler_x.fit_transform(FEATURES_train)
+    y_train = scaler_y.fit_transform(df[[target_col]][:n_train])
+
+    X_val = scaler_x.transform(FEATURES_valid)
+    y_val = scaler_y.transform(df[[target_col]][n_train:n_val])
+
+    X_test = scaler_x.transform(FEATURES_test)
+    y_test = scaler_y.transform(df[[target_col]][n_val:])
+
+    Xtr, ytr = make_sequences(X_train, y_train, seq_len=seq_len, pred_len=pred_len)
+    Xva, yva = make_sequences(X_val,   y_val,   seq_len=seq_len, pred_len=pred_len)
+    Xts, yts = make_sequences(X_test,   y_test,   seq_len=seq_len, pred_len=pred_len)
+
+    train_dl = DataLoader(SeqDataset(Xtr, ytr), batch_size=batch, shuffle=True, drop_last=True, pin_memory=True)
+    val_dl   = DataLoader(SeqDataset(Xva, yva), batch_size=batch, shuffle=False, pin_memory=True)
+    test_dl  = DataLoader(SeqDataset(Xts, yts), batch_size=batch, shuffle=False, pin_memory=True)
+
+    return train_dl, val_dl, test_dl, scaler_y, len(features)  
+
 def build_loaders_for_imf(df, imf_col = None,
-                          seq_len=48, pred_len=1, batch=64):
+                        seq_len=48, pred_len=1, batch=64):
 
     """
     Create Dataloaders for training, validation and testing for a given IMF column.
@@ -43,9 +82,9 @@ def build_loaders_for_imf(df, imf_col = None,
     n = len(df)
     n_train = int(round(0.6 * n))
     n_val = int(round(0.8 * n))
-    print(f"Dataset size: train={n_train} | val={n-n_val} | test={n - (n_val+n_train)}")
+    print(f"Dataset size: train={n_train} | val={n_val - n_train} | test={n - n_val}")
 
-    target_col = f"Active_Power_{imf_col}"
+    target_col = f"Power (MW)_{imf_col}"
     features = [c for c in df.columns if c != target_col]
 
     FEATURES_train = df[features][:n_train]
@@ -136,14 +175,19 @@ def evaluate(model, dl, device="cuda", use_amp=True):
 #####################################
 
 def training_amp(model, device, loss_fn, scaler, optim,
-                 train_dl, val_dl, MODEL_PATH,
-                 epochs=30, patience=10, verbose=True):
+                train_dl, val_dl, MODEL_PATH, 
+                df, seq_len, pred_len,    
+                epochs=30, patience=10, verbose=True):
 
     from numpy import mean
 
+    true_val = np.zeros(int(0.2*len(df)-seq_len-pred_len+1))  
+    pred_val = np.zeros(int(0.2*len(df)-seq_len-pred_len+1))  
+    
     loss_train, loss_valid = [], []
     best_val = np.inf
     wait = 0
+    
     epoch_times, val_times = [], []
     t0_total = perf_counter()
 
@@ -199,6 +243,7 @@ def training_amp(model, device, loss_fn, scaler, optim,
         if vloss < best_val:
             best_val, wait = vloss, 0
             torch.save(model.state_dict(), MODEL_PATH)
+            true_val, pred_val = vt, vp # update best valid predictions
         else:
             wait += 1
             if wait >= patience:
@@ -219,4 +264,4 @@ def training_amp(model, device, loss_fn, scaler, optim,
     if verbose:
         tqdm.write(f"[TIMES] total={total_time:.2f}s | epoch_avg={stats_tiempo['epoch_avg_s']:.2f}s | val_avg={stats_tiempo['val_avg_s']:.2f}s")
 
-    return loss_train, loss_valid, stats_tiempo
+    return loss_train, loss_valid, stats_tiempo, true_val, pred_val

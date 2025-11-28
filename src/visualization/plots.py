@@ -12,8 +12,8 @@ def plot_losses(loss_train, loss_valid, imf_col=None):
 
 def visualize(days, tt_inv, tp_inv, TARGET):
     plt.figure(figsize=(12,4))
-    plt.plot(np.linspace(1,days*47,days*47), tt_inv[300:300+days*47], label='y_true')
-    plt.plot(np.linspace(1,days*47,days*47), tp_inv[300:300+days*47], label='y_pred')
+    plt.plot(np.linspace(1,days*47,days*47), tt_inv[0:0+days*47], label='y_true')
+    plt.plot(np.linspace(1,days*47,days*47), tp_inv[0:0+days*47], label='y_pred')
     plt.title('Testing'); plt.xlabel('samples')
     plt.ylabel(TARGET); plt.legend(); plt.tight_layout()
     plt.show()

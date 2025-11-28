@@ -50,18 +50,6 @@ venv.bak/
 .envrc
 
 # ----------------------
-# Data / Outputs (personalizable)
-# ----------------------
-# Ignora outputs pesados y modelos generados
-outputs/
-**/models/
-**/plots/
-
-# Si tienes datos grandes que no deben ir al repo:
-data/
-!data/README.md   # conserva un readme explicando cómo obtener los datos
-
-# ----------------------
 # Misc
 # ----------------------
 .DS_Store
