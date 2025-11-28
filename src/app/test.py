@@ -28,12 +28,13 @@ import torch.nn as nn
 from torch.cuda.amp import autocast
 
 # ==== local imports ====
-from src.utils.helpers import build_loaders
+from src.utils.helpers import build_loaders, build_loaders_for_imf
 from src.visualization.plots import visualize, scatter
 from src.pipeline.metrics import compute_metrics
 
 from models.TimesNet_BiLSTM import TimesNet_BiLSTM_Parallel, BiLSTM, TimesNet
 from statsmodels.tsa.seasonal import STL
+from src.features.vmd import VMD
 
 # =========================================================
 # Settings
@@ -52,6 +53,10 @@ LR          = float(CFG["experiment"]["learning_rate"])
 BATCH_SIZE  = int(CFG["experiment"]["batch_size"])
 
 STL_CFG = CFG["stl"]
+VMD_CFG = CFG["vmd"]
+
+print(f"STL enabled: {STL_CFG.get('enabled', True)}")
+print(f"VMD enabled: {VMD_CFG.get('enabled', True)}")
 
 # ---- Output directories
 CKPT_DIR = os.path.join(CFG["training"]["checkpoint_dir"], 
@@ -111,7 +116,7 @@ if STL_CFG.get("enabled", True):
 
 
 ##################################
-# 3) Build base signals (12 in total)
+# 3) Build base signals
 ##################################
 
 signal_0  = df['Total solar irradiance (W/m2)']
@@ -142,7 +147,29 @@ else:
         'Relative humidity (%)', 'Power (MW)'
     ]
 
+# =========================================================
+# 3. VMD decomposition (optional, according to config)
+# =========================================================
 
+K = int(VMD_CFG["k"])
+alpha = float(VMD_CFG["alpha"])
+tau   = float(VMD_CFG["tau"])
+DC    = bool(VMD_CFG["dc"])
+init  = int(VMD_CFG["init"])
+tol   = float(VMD_CFG["tol"])
+lambda_param = float(VMD_CFG.get("lambda_param", 0))
+
+u_all = []
+for sig_idx, signal in enumerate(SIGNALS):
+    print(f"VMD → {SIGNAL_NAMES[sig_idx]}")
+    u_signal, _, _ = VMD(signal, alpha, tau, K, DC, init, tol, lambda_param)
+    u_signal = np.array(u_signal)
+    if u_signal.shape[0] != K and u_signal.shape[1] == K:
+        u_signal = u_signal.T
+    assert u_signal.shape[0] == K, f"Unexpected IMF shape for {SIGNAL_NAMES[sig_idx]}"
+    u_all.append(u_signal)
+
+print("VMD complete. Example:", u_all[0].shape)
 
 ##################################
 # 4) Testing
@@ -150,23 +177,6 @@ else:
 
 loss_fn = nn.MSELoss()
 scaler = torch.cuda.amp.GradScaler(enabled=(DEVICE.type == 'cuda'))
-
-
-# Load sequences
-train_dl, val_dl, test_dl, y_scaler, n_val_seq = build_loaders(
-    df=df, seq_len=SEQ_LEN, pred_len=PRED_LEN, batch=BATCH_SIZE
-)
-
-# Model + optimizer
-# model = BiLSTM(configs=cast(Any, MODEL_CFG)).to(DEVICE)
-model = TimesNet(configs=cast(Any, MODEL_CFG)).to(DEVICE)
-# model = TimesNet_BiLSTM_Parallel(configs=cast(Any, MODEL_CFG)).to(DEVICE)
-optim = torch.optim.Adam(model.parameters(), lr=LR, weight_decay=1e-4)
-
-model_path = os.path.join(CKPT_DIR, f"TimesNet_best_model.pt")
-model.load_state_dict(torch.load(model_path, 
-                                map_location=DEVICE))
-model.eval()
 
 # prediction
 def predict_loader(model, dl, device):
@@ -181,38 +191,136 @@ def predict_loader(model, dl, device):
             trues.append(yb.detach().cpu().numpy())
     return np.concatenate(preds, axis=0), np.concatenate(trues, axis=0)
 
+if VMD_CFG.get("enabled", True):
+    y_preds_inv_ref = None
+    y_true_inv_ref = None
+    per_imf_metrics = []
 
-y_pred, y_true = predict_loader(model, test_dl, DEVICE)
-y_pred_inv = y_scaler.inverse_transform(y_pred.reshape(-1, 1)).ravel()
-y_true_inv = y_scaler.inverse_transform(y_true.reshape(-1, 1)).ravel()
-print(f"shapes of true and predicted values: {y_true_inv.shape}, {y_pred_inv.shape}")
+    t0 = perf_counter()
 
-abs_errors = np.abs(y_true_inv - y_pred_inv)
-squared_errors = (y_true_inv - y_pred_inv)**2
-excel_file_path = "/home/brakine/VMD_STL_Parallel_TimesNet_BiLSTM_POWERFORECASTING/outputs/logs/TimesNet/Predictions_TimesNet_test.xlsx"
-df_results = pd.DataFrame({'True_Values': y_true_inv,
-                            'Predicted_Values': y_pred_inv,
-                            'Absolute_Error': abs_errors,
-                            'Squared_Error': squared_errors})
-df_results.to_excel(excel_file_path, index=False)
+    for idx in range(K):
+        imf_col = f"mode{idx}"
 
-# =================================================
-# 5. METRICS    
-# =================================================
-# Compute metrics on the denormalized (original-scale) values
-final_R2, final_MAE, final_RMSE = compute_metrics(y_true=y_true_inv, y_pred=y_pred_inv)
+        # build dataframe for this IMF
+        modes_df = pd.DataFrame({
+            f"{SIGNAL_NAMES[sig_idx]}_{imf_col}": u_all[sig_idx][idx, :]
+            for sig_idx in range(len(SIGNALS))
+        })
 
-print("\n=== FINAL METRICS ===")
-print(f"MAE : {final_MAE:.6f}")
-print(f"RMSE: {final_RMSE:.6f}")
-print(f"R²  : {final_R2:.6f}")
+        _, _, test_dl, y_scaler, _ = build_loaders_for_imf(
+            df=modes_df, imf_col=imf_col,
+            seq_len=SEQ_LEN, pred_len=PRED_LEN, batch=int(CFG["experiment"]["batch_size"])
+        )
 
-# Plot total prediction (saving optional)
-try:
-    visualize(days=1, tt_inv=y_true_inv, tp_inv=y_pred_inv, TARGET="Power (MW)")
-    # plt_recon = os.path.join(PLOTS_DIR, "Reconstructed_Sum_series.png")
-    scatter(y_true_inv, y_pred_inv)
-    # plt_recon_scatter = os.path.join(PLOTS_DIR, "Reconstructed_Sum_scatter.png")
-    # print(f"Final plots saved: {plt_recon}, {plt_recon_scatter}")
-except Exception as e:
-    print(f"Warning: final plots could not be generated: {e}")
+        # load model
+        # model_i = BiLSTM(configs=cast(Any, MODEL_CFG)).to(DEVICE)
+        # model_i = TimesNet(configs=cast(Any, MODEL_CFG)).to(DEVICE)
+        model_i = TimesNet_BiLSTM_Parallel(configs=cast(Any, MODEL_CFG)).to(DEVICE)
+        ckpt_path = os.path.join(CKPT_DIR, f"model_imf_{idx}.pt")
+        if not os.path.exists(ckpt_path):
+            raise FileNotFoundError(f"No checkpoint found: {ckpt_path}")
+        model_i.load_state_dict(torch.load(ckpt_path, map_location=DEVICE))
+        model_i.eval()
+
+        # prediction
+        y_pred, y_true = predict_loader(model_i, test_dl, DEVICE)
+        y_pred_inv = y_scaler.inverse_transform(y_pred.reshape(-1, 1)).ravel()
+        y_true_inv = y_scaler.inverse_transform(y_true.reshape(-1, 1)).ravel()
+
+        # Reconstruct sum
+        if y_preds_inv_ref is None:
+            y_preds_inv_ref = y_pred_inv.copy()
+            y_true_inv_ref = y_true_inv.copy()
+        else:
+            n = min(len(y_preds_inv_ref), len(y_pred_inv))
+            y_preds_inv_ref[:n] += y_pred_inv[:n]
+            y_true_inv_ref = y_true_inv_ref[:n]
+
+    print(f"shapes of true and predicted values: {y_true_inv_ref.shape}, {y_preds_inv_ref.shape}")
+
+    abs_errors = np.abs(y_true_inv_ref - y_preds_inv_ref)
+    squared_errors = (y_true_inv_ref - y_preds_inv_ref)**2
+    excel_file_path = "/home/brakine/VMD_STL_Parallel_TimesNet_BiLSTM_POWERFORECASTING/outputs/logs/STL_VMD_TimesNet_BiLSTM/Predictions_STL_VMD_TimesNet_BiLSTM_test.xlsx"
+    df_results = pd.DataFrame({'True_Values': y_true_inv_ref,
+                                'Predicted_Values': y_preds_inv_ref,
+                                'Absolute_Error': abs_errors,
+                                'Squared_Error': squared_errors})
+    df_results.to_excel(excel_file_path, index=False)
+
+
+    # =========================================================
+    # 5. METRICS 
+    # =========================================================
+    final_R2, final_MAE, final_RMSE = compute_metrics(y_true_inv_ref, y_preds_inv_ref)
+
+    print("\n=== MMetrics per IMF ===")
+    for m in per_imf_metrics:
+        print(f"IMF_{m['IMF']}: MAE={m['MAE']:.4f} | RMSE={m['RMSE']:.4f} | R2={m['R2']:.4f} | n={m['n']}")
+
+    print("\n=== FINAL METRICS (Sum of IMFs, real scale) ===")
+    print(f"MAE : {final_MAE:.4f}")
+    print(f"RMSE: {final_RMSE:.4f}")
+    print(f"R²  : {final_R2:.4f}")
+
+    # Plot total prediction (saving optional)
+    try:
+        visualize(days=1, tt_inv=y_true_inv_ref, tp_inv=y_preds_inv_ref, TARGET="Reconstructed_Sum")
+        # plt_recon = os.path.join(PLOTS_DIR, "Reconstructed_Sum_series.png")
+        scatter(y_true_inv_ref, y_preds_inv_ref)
+        # plt_recon_scatter = os.path.join(PLOTS_DIR, "Reconstructed_Sum_scatter.png")
+        # print(f"Final plots saved: {plt_recon}, {plt_recon_scatter}")
+    except Exception as e:
+        print(f"Warning: final plots could not be generated: {e}")
+
+    print(f"\nProcess completed in {perf_counter() - t0:.2f}s")
+else:
+    # Load sequences
+    train_dl, val_dl, test_dl, y_scaler, n_val_seq = build_loaders(
+        df=df, seq_len=SEQ_LEN, pred_len=PRED_LEN, batch=BATCH_SIZE
+    )
+
+    # Model + optimizer
+    # model = BiLSTM(configs=cast(Any, MODEL_CFG)).to(DEVICE)
+    model = TimesNet(configs=cast(Any, MODEL_CFG)).to(DEVICE)
+    # model = TimesNet_BiLSTM_Parallel(configs=cast(Any, MODEL_CFG)).to(DEVICE)
+    optim = torch.optim.Adam(model.parameters(), lr=LR, weight_decay=1e-4)
+
+    model_path = os.path.join(CKPT_DIR, f"TimesNet_best_model.pt")
+    model.load_state_dict(torch.load(model_path, 
+                                    map_location=DEVICE))
+    model.eval()
+
+    y_pred, y_true = predict_loader(model, test_dl, DEVICE)
+    y_pred_inv = y_scaler.inverse_transform(y_pred.reshape(-1, 1)).ravel()
+    y_true_inv = y_scaler.inverse_transform(y_true.reshape(-1, 1)).ravel()
+    print(f"shapes of true and predicted values: {y_true_inv.shape}, {y_pred_inv.shape}")
+
+    abs_errors = np.abs(y_true_inv - y_pred_inv)
+    squared_errors = (y_true_inv - y_pred_inv)**2
+    excel_file_path = "/home/brakine/VMD_STL_Parallel_TimesNet_BiLSTM_POWERFORECASTING/outputs/logs/TimesNet/Predictions_TimesNet_test.xlsx"
+    df_results = pd.DataFrame({'True_Values': y_true_inv,
+                                'Predicted_Values': y_pred_inv,
+                                'Absolute_Error': abs_errors,
+                                'Squared_Error': squared_errors})
+    df_results.to_excel(excel_file_path, index=False)
+
+    # =================================================
+    # 5. METRICS    
+    # =================================================
+    # Compute metrics on the denormalized (original-scale) values
+    final_R2, final_MAE, final_RMSE = compute_metrics(y_true=y_true_inv, y_pred=y_pred_inv)
+
+    print("\n=== FINAL METRICS ===")
+    print(f"MAE : {final_MAE:.6f}")
+    print(f"RMSE: {final_RMSE:.6f}")
+    print(f"R²  : {final_R2:.6f}")
+
+    # Plot total prediction (saving optional)
+    try:
+        visualize(days=1, tt_inv=y_true_inv, tp_inv=y_pred_inv, TARGET="Power (MW)")
+        # plt_recon = os.path.join(PLOTS_DIR, "Reconstructed_Sum_series.png")
+        scatter(y_true_inv, y_pred_inv)
+        # plt_recon_scatter = os.path.join(PLOTS_DIR, "Reconstructed_Sum_scatter.png")
+        # print(f"Final plots saved: {plt_recon}, {plt_recon_scatter}")
+    except Exception as e:
+        print(f"Warning: final plots could not be generated: {e}")

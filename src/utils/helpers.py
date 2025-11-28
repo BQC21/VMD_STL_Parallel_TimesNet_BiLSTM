@@ -73,6 +73,75 @@ def build_loaders(df, seq_len=48, pred_len=1, batch=64):
 
     return train_dl, val_dl, test_dl, scaler_y, len(features)  
 
+def build_loaders_for_imf(df, imf_col = None,
+                        seq_len=48, pred_len=1, batch=64):
+
+    """
+    Create Dataloaders for training, validation and testing for a given IMF column.
+    """
+    n = len(df)
+    n_train = int(round(0.6 * n))
+    n_val = int(round(0.8 * n))
+    print(f"Dataset size: train={n_train} | val={n_val - n_train} | test={n - n_val}")
+
+    target_col = f"Power (MW)_{imf_col}"
+    features = [c for c in df.columns if c != target_col]
+
+    FEATURES_train = df[features][:n_train]
+    FEATURES_valid = df[features][n_train:n_val]
+    FEATURES_test = df[features][n_val:]
+
+    scaler_x = StandardScaler()
+    scaler_y = MinMaxScaler() 
+
+    # Convert to real arrays if they come as complex (VMD can return complex dtype
+    # even when the imaginary part is zero). Scikit-learn does not accept complex data.
+    def _to_real_array(df_part):
+        arr = df_part.values
+        if np.iscomplexobj(arr):
+            warnings.warn("Complex values found in input -- discarding imaginary part and using real part.")
+            arr = np.real(arr)
+        return arr.astype(np.float64)
+
+    X_train_arr = _to_real_array(FEATURES_train)
+    X_val_arr = _to_real_array(FEATURES_valid)
+    X_test_arr = _to_real_array(FEATURES_test)
+
+    y_train_arr = df[[target_col]].iloc[:n_train].values
+    if np.iscomplexobj(y_train_arr):
+        warnings.warn("Complex values found in target -- discarding imaginary part and using real part.")
+        y_train_arr = np.real(y_train_arr)
+    y_train_arr = y_train_arr.astype(np.float64)
+
+    y_val_arr = df[[target_col]].iloc[n_train:n_val].values
+    if np.iscomplexobj(y_val_arr):
+        y_val_arr = np.real(y_val_arr)
+    y_val_arr = y_val_arr.astype(np.float64)
+
+    y_test_arr = df[[target_col]].iloc[n_val:].values
+    if np.iscomplexobj(y_test_arr):
+        y_test_arr = np.real(y_test_arr)
+    y_test_arr = y_test_arr.astype(np.float64)
+
+    X_train = scaler_x.fit_transform(X_train_arr)
+    y_train = scaler_y.fit_transform(y_train_arr)
+
+    X_val = scaler_x.transform(X_val_arr)
+    y_val = scaler_y.transform(y_val_arr)
+
+    X_test = scaler_x.transform(X_test_arr)
+    y_test = scaler_y.transform(y_test_arr)
+
+    Xtr, ytr = make_sequences(X_train, y_train, seq_len=seq_len, pred_len=pred_len)
+    Xva, yva = make_sequences(X_val,   y_val,   seq_len=seq_len, pred_len=pred_len)
+    Xts, yts = make_sequences(X_test,   y_test,   seq_len=seq_len, pred_len=pred_len)
+
+    train_dl = DataLoader(SeqDataset(Xtr, ytr), batch_size=batch, shuffle=True, drop_last=True, pin_memory=True)
+    val_dl   = DataLoader(SeqDataset(Xva, yva), batch_size=batch, shuffle=False, pin_memory=True)
+    test_dl  = DataLoader(SeqDataset(Xts, yts), batch_size=batch, shuffle=False, pin_memory=True)
+
+    return train_dl, val_dl, test_dl, scaler_y, len(features)  
+
 #####################################
 # Evaluate (for test and validation)
 #####################################
