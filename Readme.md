@@ -75,21 +75,21 @@ Parameters can be modified in `/configs/parameters.yaml` for new experiments.
 
 ### Outputs
 
-### Benchmark 
+### Benchmark from testing data
 | Model                                      | MAE     | RMSE    | R²     |
 |--------------------------------------------|-------- |---------|--------|
-| BiLSTM                                     |   |   |  |
-| TimesNet                                   |   |   |  |
-| PA [TimesNet-BiLSTM]                       |   |   |  |
-| STL – BiLSTM                               |   |   |  |
-| STL – TimesNet                             |   |   |  |
-| STL – PA [TimesNet-BiLSTM]                 |   |   |  |
-| VMD-BiLSTM                                 |   |   |  |
-| VMD-TimesNet                               |   |   |  |
-| VMD-PA [TimesNet-BiLSTM]                   |   |   |  |
-| STL – VMD - BiLSTM                         |   |   |  |
-| STL – VMD - TimesNet                       |   |   |  |
-| STL – VMD – PA [TimesNet-BiLSTM] (purpose) |   |   |  |
+| BiLSTM                                     | 3.1638  | 4.4448  | 0.6079 |
+| TimesNet                                   | 3.0399  | 4.2910  | 0.6344 |
+| PA [TimesNet-BiLSTM]                       | 3.0263  | 4.3729  | 0.6204 |
+| STL – BiLSTM                               | 0.7620  | 1.0182  | 0.9794 |
+| STL – TimesNet                             | 0.7635  | 1.0292  | 0.9790 |
+| STL – PA [TimesNet-BiLSTM]                 | 0.7613  | 1.0206  | 0.9793 |
+| VMD-BiLSTM                                 | 3.0713  | 4.5132  | 0.5900 |
+| VMD-TimesNet                               | 2.9784  | 4.2299  | 0.6399 |
+| VMD-PA [TimesNet-BiLSTM]                   | 2.9789  | 4.3131  | 0.6255 |
+| STL – VMD - BiLSTM                         | 0.4507  | 0.6005  | 0.9927 |
+| STL – VMD - TimesNet                       | 0.4637  | 0.6022  | 0.9927 |
+| STL – VMD – PA [TimesNet-BiLSTM] (purpose) | 0.4680  | 0.6055  | 0.9926 |
 
 ## Run
 
