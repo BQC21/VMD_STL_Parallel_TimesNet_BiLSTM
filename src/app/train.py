@@ -57,6 +57,8 @@ torch.cuda.manual_seed_all(SEED)
 torch.backends.cudnn.deterministic = True
 torch.backends.cudnn.benchmark = False
 
+print(f"==> Config loaded from {CONFIG_PATH} \n")
+
 # ---- device
 DEVICE = torch.device(CFG["experiment"]["device"] if torch.cuda.is_available() else "cpu")
 print("torch:", torch.__version__)
@@ -83,7 +85,7 @@ STL_CFG = CFG["stl"]
 VMD_CFG = CFG["vmd"]
 
 print(f"STL enabled: {STL_CFG.get('enabled', True)}")
-print(f"VMD enabled: {VMD_CFG.get('enabled', True)}")
+print(f"VMD enabled: {VMD_CFG.get('enabled', True)}\n")
 
 # ---- Output directories
 CKPT_DIR = os.path.join(CFG["training"]["checkpoint_dir"], 
@@ -101,8 +103,6 @@ def build_model_cfg(cfg_yaml: dict) -> SimpleNamespace:
     bl = m["bilstm"]
     # namespaces
     return SimpleNamespace(
-        seq_len=CFG["data"]["sequence_length"],
-        pred_len=CFG["data"]["prediction_length"],
         top_k=tn["top_k"],
         d_model=tn["d_model"],
         d_ff=tn["d_ff"],
@@ -124,64 +124,106 @@ MODEL_CFG = build_model_cfg(CFG)
 
 df = pd.read_csv(CSV_PATH)
 assert TARGET in df.columns, f"TARGET '{TARGET}' not found in {CSV_PATH}"
+print(f"Dataset loaded from {CSV_PATH} \n")
 
 ##################################
 # 2) STL (optional, according to config)
 ##################################
 
 if STL_CFG.get("enabled", True):
-    # Note: by default calculates STL on the entire series (without rolling).
-    # If you want to avoid strict leakage, implement rolling/block in helpers.
-    stl = STL(df[TARGET], period=int(STL_CFG["period"]), robust=bool(STL_CFG["robust"]))
-    res = stl.fit()
-    df["Active_Power_Trend"]    = res.trend
-    df["Active_Power_Seasonal"] = res.seasonal
-    df["Active_Power_Residual"] = res.resid
+    if CSV_PATH.endswith("figshare_modified.csv"):
+        # Note: by default calculates STL on the entire series (without rolling).
+        # If you want to avoid strict leakage, implement rolling/block in helpers.
+        stl = STL(df[TARGET], period=int(STL_CFG["period"]), robust=bool(STL_CFG["robust"]))
+        res = stl.fit()
+        df["Power_MW_Trend"]    = res.trend
+        df["Power_MW_Seasonal"] = res.seasonal
+        df["Power_MW_Residual"] = res.resid
+        print(f"STL decomposition completed \n")
+    else: # DKASC
+        # Note: by default calculates STL on the entire series (without rolling).
+        # If you want to avoid strict leakage, implement rolling/block in helpers.
+        stl = STL(df[TARGET], period=int(STL_CFG["period"]), robust=bool(STL_CFG["robust"]))
+        res = stl.fit()
+        df["Active_Power_Trend"]    = res.trend
+        df["Active_Power_Seasonal"] = res.seasonal
+        df["Active_Power_Residual"] = res.resid
+        print(f"STL decomposition completed \n")
 
 
 ##################################
-# 3) Build base signals (7 in total)
+# 3) Build base signals 
 ##################################
 
-signal_0  = df['Wind_Speed']
-signal_1  = df['Weather_Temperature_Celsius']
-signal_2  = df['Global_Horizontal_Radiation']
-signal_3  = df['Max_Wind_Speed']
-signal_4  = df['Pyranometer_1']
-signal_5  = df['Temperature_Probe_1']
-signal_6  = df['Temperature_Probe_2']
-signal_7  = df['Active_Energy_Received']
+if CSV_PATH.endswith("figshare_modified.csv"):
+    signal_0  = df['Total solar irradiance (W/m2)']
+    signal_1  = df['Air temperature  (°C) ']
+    signal_2  = df['Relative humidity (%)']
 
-if STL_CFG.get("enabled", True):
-    signal_8  = df['Active_Power_Trend']
-    signal_9  = df['Active_Power_Seasonal']
-    signal_10 = df['Active_Power_Residual']
-    signal_11 = df['Active_Power']
+    if STL_CFG.get("enabled", True):
+        signal_3  = df['Active_Power_Trend']
+        signal_4  = df['Active_Power_Seasonal']
+        signal_5 = df['Active_Power_Residual']
+        signal_6 = df[TARGET]
 
-    SIGNALS = [
-        signal_0, signal_1, signal_2, signal_3, signal_4, signal_5,
-        signal_6, signal_7, signal_8, signal_9, signal_10, signal_11
-    ]
-    SIGNAL_NAMES = [
-        'Wind_Speed', 'Weather_Temperature_Celsius', 'Global_Horizontal_Radiation',
-        'Max_Wind_Speed', 'Pyranometer_1', 'Temperature_Probe_1', 'Temperature_Probe_2',
-        'Active_Energy_Received', 'Active_Power_Trend', 'Active_Power_Seasonal',
-        'Active_Power_Residual', 'Active_Power'
-    ]
-else:
-    signal_8  = df['Active_Power']
+        SIGNALS = [
+            signal_0, signal_1, signal_2, signal_3, signal_4, signal_5, signal_6
+        ]
+        SIGNAL_NAMES = [
+            'Total solar irradiance (W/m2)', 'Air temperature  (°C) ', 'Relative humidity (%)',
+            'Active_Power_Trend', 'Active_Power_Seasonal','Active_Power_Residual', 'Power (MW)'
+        ]
+    else:
+        signal_3 = df[TARGET]
 
-    SIGNALS = [
-        signal_0, signal_1, signal_2, signal_3, signal_4, signal_5,
-        signal_6, signal_7, signal_8
-    ]
-    SIGNAL_NAMES = [
-        'Wind_Speed', 'Weather_Temperature_Celsius', 'Global_Horizontal_Radiation',
-        'Max_Wind_Speed', 'Pyranometer_1', 'Temperature_Probe_1', 'Temperature_Probe_2',
-        'Active_Energy_Received', 'Active_Power'
-    ]
+        SIGNALS = [
+            signal_0, signal_1, signal_2, signal_3
+        ]
+        SIGNAL_NAMES = [
+            'Total solar irradiance (W/m2)', 'Air temperature (°C)', 
+            'Relative humidity (%)', 'Power (MW)'
+        ]
+else: # DKASC:
+    signal_0  = df['Wind_Speed']
+    signal_1  = df['Weather_Temperature_Celsius']
+    signal_2  = df['Global_Horizontal_Radiation']
+    signal_3  = df['Max_Wind_Speed']
+    signal_4  = df['Pyranometer_1']
+    signal_5  = df['Temperature_Probe_1']
+    signal_6  = df['Temperature_Probe_2']
+    signal_7  = df['Active_Energy_Received']
+
+    if STL_CFG.get("enabled", True):
+        signal_8  = df['Active_Power_Trend']
+        signal_9  = df['Active_Power_Seasonal']
+        signal_10 = df['Active_Power_Residual']
+        signal_11 = df['Active_Power']
+
+        SIGNALS = [
+            signal_0, signal_1, signal_2, signal_3, signal_4, signal_5,
+            signal_6, signal_7, signal_8, signal_9, signal_10, signal_11
+        ]
+        SIGNAL_NAMES = [
+            'Wind_Speed', 'Weather_Temperature_Celsius', 'Global_Horizontal_Radiation',
+            'Max_Wind_Speed', 'Pyranometer_1', 'Temperature_Probe_1', 'Temperature_Probe_2',
+            'Active_Energy_Received', 'Active_Power_Trend', 'Active_Power_Seasonal',
+            'Active_Power_Residual', 'Active_Power'
+        ]
+    else:
+        signal_8  = df['Active_Power']
+
+        SIGNALS = [
+            signal_0, signal_1, signal_2, signal_3, signal_4, signal_5,
+            signal_6, signal_7, signal_8
+        ]
+        SIGNAL_NAMES = [
+            'Wind_Speed', 'Weather_Temperature_Celsius', 'Global_Horizontal_Radiation',
+            'Max_Wind_Speed', 'Pyranometer_1', 'Temperature_Probe_1', 'Temperature_Probe_2',
+            'Active_Energy_Received', 'Active_Power'
+        ]
 
 print(f"Total signals used: {len(SIGNALS)}")
+print(f"Signal names: {SIGNAL_NAMES} \n")
 
 ##################################
 # 4) VMD per signal (optional, according to config)
@@ -208,7 +250,7 @@ if VMD_CFG.get("enabled", True):
 
     print("VMD processing completed for all signals.")
     print(f"Total signals processed: {len(SIGNALS)}")
-    print(f"Shape example u_all[0]: {np.array(u_all[0]).shape}")  # (K, N) = (3, _)
+    print(f"Shape example u_all[0]: {np.array(u_all[0]).shape} \n")  # (K, N) = (3, _)
 
 ##################################
 # 5) Training
@@ -221,12 +263,10 @@ if VMD_CFG.get("enabled", True):
     models = []
     tiempos_imf = []
 
-Y_pred_total = np.zeros(int(0.2*len(df)-SEQ_LEN-PRED_LEN+1))  # Adjust size as needed (20% of IMF data length)
+Y_pred_total = np.zeros(int(0.2*len(df)-SEQ_LEN-PRED_LEN+1))  # Adjust size as needed (20% of data length)
 Y_real_total = np.zeros(int(0.2*len(df)-SEQ_LEN-PRED_LEN+1)) 
-# Y_pred_total = np.zeros(10464)  # Adjust size as needed (20% of IMF data length)
-# Y_real_total = np.zeros(10464) 
 print(f"Initial Y_total shape: {Y_pred_total.shape}")
-print(f"Initial Y_real_total shape: {Y_real_total.shape}")
+print(f"Initial Y_real_total shape: {Y_real_total.shape} \n")
 
 tqdm.write(f"\n=== Training ===")
 t0 = perf_counter()
@@ -251,8 +291,6 @@ if VMD_CFG.get("enabled", True):
         )
 
         # --------- Model + optimizer
-        # model_i = BiLSTM(configs=cast(Any, MODEL_CFG)).to(DEVICE)
-        # model_i = TimesNet(configs=cast(Any, MODEL_CFG)).to(DEVICE)
         model_i = TimesNet_BiLSTM_Parallel(configs=cast(Any, MODEL_CFG)).to(DEVICE)
         optim_i = torch.optim.Adam(model_i.parameters(), lr=LR, weight_decay=1e-4)
         model_path = os.path.join(CKPT_DIR, f"model_imf_{idx}.pt")
@@ -306,20 +344,19 @@ if VMD_CFG.get("enabled", True):
     tqdm.write(f"RMSE: {RMSE:.4f}")
     tqdm.write(f"MAE:  {MAE:.4f}")
     tqdm.write(f"R2:   {R2:.4f}")       
-else:
+else: # no VMD
     # Load sequences
     train_dl, val_dl, test_dl, y_scaler, __ = build_loaders(
-        df=df, seq_len=SEQ_LEN, pred_len=PRED_LEN, batch=BATCH_SIZE
+        df=df, seq_len=SEQ_LEN, pred_len=PRED_LEN, 
+        batch=BATCH_SIZE, target_col=TARGET
     )
 
     # -------- Model + optimizer
-    model = BiLSTM(configs=cast(Any, MODEL_CFG)).to(DEVICE)
-    # model = TimesNet(configs=cast(Any, MODEL_CFG)).to(DEVICE)
-    # model = TimesNet_BiLSTM_Parallel(configs=cast(Any, MODEL_CFG)).to(DEVICE)
+    model = TimesNet_BiLSTM_Parallel(configs=cast(Any, MODEL_CFG)).to(DEVICE)
     optim = torch.optim.Adam(model.parameters(), lr=LR, weight_decay=1e-4)
 
     # Use a filename that doesn't depend on VMD-specific variables when VMD is disabled
-    model_path = os.path.join(CKPT_DIR, "BiLSTM_best_model.pt")
+    model_path = os.path.join(CKPT_DIR, "STL_TimesNet_BiLSTM_best_model.pt")
 
     # Training with AMP + early stopping
     __, __, stats_t, vt, vp = training_amp(
@@ -336,19 +373,22 @@ else:
 
     abs_errors = np.abs(y_true_inv - y_pred_inv)
     squared_errors = (y_true_inv - y_pred_inv)**2
-    excel_file_path = "/home/brakine/VMD_STL_Parallel_TimesNet_BiLSTM_POWERFORECASTING/outputs/logs/STL_TimesNet_BiLSTM/Predictions_STL_TimesNet_BiLSTM_valid.xlsx"
+    excel_file_path = os.path.join(CFG["training"]["log_dir"], 
+                        CFG["training"]["model_dir"],
+                        "Predictions_STL_TimesNet_BiLSTM_valid.xlsx")
     df_results = pd.DataFrame({'True_Values': y_true_inv,
                                 'Predicted_Values': y_pred_inv,
                                 'Absolute_Error': abs_errors,
                                 'Squared_Error': squared_errors})
     df_results.to_excel(excel_file_path, index=False)
 
-    print(f"shapes of true and predicted values: {y_true_inv.shape}, {y_pred_inv.shape}")
+    print(f"shapes of true and predicted values: {y_true_inv.shape}, {y_pred_inv.shape}\n")
     # Computer metrics (RMSE)
     R2, MAE, RMSE = compute_metrics(y_true_inv, y_pred_inv)
     tqdm.write(f"RMSE: {RMSE:.4f}")
     tqdm.write(f"MAE:  {MAE:.4f}")
     tqdm.write(f"R2:   {R2:.4f}")
+    tqdm.write(f"\n")
 
     # Summary times 
     t_final = perf_counter() - t0

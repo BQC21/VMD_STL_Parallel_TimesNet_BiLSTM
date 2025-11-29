@@ -7,42 +7,37 @@ experiment:
   batch_size: 64
   learning_rate: 0.001
   early_stopping_patience: 30
-  scheduler_patience: 3
-  scheduler_factor: 0.5
 
 # Dataset configuration
 data:
-  root_path: "data/processed/dataset_Laundry_modified.csv"
-  target: "Active_Power"
+  root_path: "data/dataset_Laundry_modified.csv"
+  # root_path: "data/dataset_figshare_modified.csv"
+  target: "Active_Power" # DKSAC
+  # target: "Power (MW)" # figshare
   sequence_length: 48
   prediction_length: 1
-  train_split: 0.6
-  val_split: 0.2
-  test_split: 0.2
-  normalization: "minmax" 
-  shuffle: true
 
 # STL decomposition parameters
 stl:
   enabled: true
   period: 9 
-  robust: true
-  rolling_window: false 
 
 # VMD decomposition parameters
 vmd:
-  alpha: 0.1     # bandwidth constraint
+  alpha: 0.025     # bandwidth constraint
   tau: 0
   k: 3        # number of modes
   dc: 0
   init: 1
   tol: 1e-7
-  lambda_param: 85  # Lagrange multiplier for reconstruction constraint
+  lambda_param: 75  # Lagrange multiplier for reconstruction constraint
+  enabled: false
 
 # Model configuration
 model:
   name: "TimesNet_BiLSTM"
-  input_features: 11
+  input_features: 11 # switch to 8 if STL are disabled (DKASC)
+  # input_features: 6 # switch to 3 if STL are disabled (figshare)
   output_features: 1
 
   timesnet:
@@ -63,7 +58,20 @@ training:
   optimizer: "adam"
   loss_function: "mse"
   metrics: ["mae", "rmse", "r2"]
-  checkpoint_dir: "outputs/models"
-  log_dir: "outputs/logs"
+
+  # checkpoint_dir: "outputs/Figshare/models"
+  checkpoint_dir: "outputs/Yulara/models"
+  
+  # model_dir: "TimesNet_BiLSTM"
+  model_dir: "STL_TimesNet_BiLSTM"
+  # model_dir: "VMD_TimesNet_BiLSTM"
+  # model_dir: "STL_VMD_TimesNet_BiLSTM"
+  
+  # log_dir: "outputs/Figshare/logs"
+  log_dir: "outputs/Yulara/logs"
+
+  # plot_dir: "outputs/Figshare/plots"
+  plot_dir: "outputs/Yulara/plots"
+  
   save_best_only: true
   verbose: true

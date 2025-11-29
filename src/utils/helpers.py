@@ -34,7 +34,7 @@ def make_sequences(X, y, seq_len=48, pred_len=1):
     return np.array(Xs), np.array(ys)
 
 # Processing
-def build_loaders(df, seq_len=48, pred_len=1, batch=64):
+def build_loaders(df, seq_len=48, pred_len=1, batch=64, target_col="Active_Power"):
 
     """
     Create Dataloaders for training, validation and testing
@@ -44,24 +44,21 @@ def build_loaders(df, seq_len=48, pred_len=1, batch=64):
     n_val = int(round(0.8 * n))
     print(f"Dataset size: train={n_train} | val={n_val - n_train} | test={n - n_val}")
 
-    target_col = f"Active_Power"
-    features = [c for c in df.columns if c != target_col]
+    train_df = df[:n_train]
+    val_df = df[n_train:n_val]
+    test_df = df[n_val:]
 
-    FEATURES_train = df[features][:n_train]
-    FEATURES_valid = df[features][n_train:n_val]
-    FEATURES_test = df[features][n_val:]
+    features = [c for c in train_df.columns if c != target_col]
 
     scaler_x = StandardScaler()
     scaler_y = MinMaxScaler() 
 
-    X_train = scaler_x.fit_transform(FEATURES_train)
-    y_train = scaler_y.fit_transform(df[[target_col]][:n_train])
-
-    X_val = scaler_x.transform(FEATURES_valid)
-    y_val = scaler_y.transform(df[[target_col]][n_train:n_val])
-
-    X_test = scaler_x.transform(FEATURES_test)
-    y_test = scaler_y.transform(df[[target_col]][n_val:])
+    X_train = scaler_x.fit_transform(train_df[features])
+    y_train = scaler_y.fit_transform(train_df[[target_col]])
+    X_val = scaler_x.transform(val_df[features])
+    y_val = scaler_y.transform(val_df[[target_col]])
+    X_test = scaler_x.transform(test_df[features])
+    y_test = scaler_y.transform(test_df[[target_col]])
 
     Xtr, ytr = make_sequences(X_train, y_train, seq_len=seq_len, pred_len=pred_len)
     Xva, yva = make_sequences(X_val,   y_val,   seq_len=seq_len, pred_len=pred_len)
@@ -223,8 +220,7 @@ def training_amp(model, device, loss_fn, scaler, optim,
         epoch_time = perf_counter() - t0_epoch
         epoch_times.append(epoch_time)
 
-        train_mse = float(mean(batch_losses))
-        loss_train.append(train_mse)
+        loss_train.append(np.mean(batch_losses))
 
         # Validation
         t0_val = perf_counter()
@@ -237,7 +233,7 @@ def training_amp(model, device, loss_fn, scaler, optim,
         loss_valid.append(vloss)
 
         if verbose:
-            tqdm.write(f"Epoch {epoch:03d} | train_mse={train_mse:.6f} | val_mse={vloss:.6f} | t_epoch={epoch_time:.2f}s | t_val={val_time:.2f}s")
+            tqdm.write(f"Epoch {epoch:03d} | train_mse={np.mean(batch_losses):.6f} | val_mse={vloss:.6f} | t_epoch={epoch_time:.2f}s | t_val={val_time:.2f}s")
 
         # Early stopping
         if vloss < best_val:

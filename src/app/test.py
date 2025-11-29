@@ -295,9 +295,7 @@ else:
     )
 
     # Model + optimizer
-    model = BiLSTM(configs=cast(Any, MODEL_CFG)).to(DEVICE)
-    # model = TimesNet(configs=cast(Any, MODEL_CFG)).to(DEVICE)
-    # model = TimesNet_BiLSTM_Parallel(configs=cast(Any, MODEL_CFG)).to(DEVICE)
+    model = TimesNet_BiLSTM_Parallel(configs=cast(Any, MODEL_CFG)).to(DEVICE)
     optim = torch.optim.Adam(model.parameters(), lr=LR, weight_decay=1e-4)
 
     model_path = os.path.join(CKPT_DIR, f"STL_TimesNet_BiLSTM_best_model.pt")

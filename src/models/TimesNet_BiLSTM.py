@@ -1,8 +1,8 @@
-# basicos
+# basics
 import numpy as np
 import math 
 
-# redes neuronales
+# neural networks
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -12,18 +12,18 @@ from dataclasses import dataclass
 @dataclass
 class Configs:
     # Minimal defaults — adjust these values to match your needs
-    n_features: int = 1
+    n_features: int = 11
     n_targets: int = 1
     pred_len: int = 1
     top_k: int = 2
-    dropout: float = 0.0
+    dropout: float = 0.1188
     d_model: int = 32
-    d_ff: int = 64
-    num_kernels: int = 6
-    num_times_blocks: int = 1
+    d_ff: int = 8
+    num_kernels: int = 7
+    num_times_blocks: int = 2
     hidden: int = 32
-    layers: int = 1
-    bidirectional: bool = False
+    layers: int = 3
+    bidirectional: bool = True
 
 def FFT_for_Period(x, k=2):
     """
