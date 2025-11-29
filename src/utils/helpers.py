@@ -71,7 +71,8 @@ def build_loaders(df, seq_len=48, pred_len=1, batch=64, target_col="Active_Power
     return train_dl, val_dl, test_dl, scaler_y, len(features)  
 
 def build_loaders_for_imf(df, imf_col = None,
-                        seq_len=48, pred_len=1, batch=64):
+                        seq_len=48, pred_len=1, 
+                        batch=64, target_col="Active_Power"):
 
     """
     Create Dataloaders for training, validation and testing for a given IMF column.
@@ -81,12 +82,15 @@ def build_loaders_for_imf(df, imf_col = None,
     n_val = int(round(0.8 * n))
     print(f"Dataset size: train={n_train} | val={n_val - n_train} | test={n - n_val}")
 
-    target_col = f"Active_Power_{imf_col}"
-    features = [c for c in df.columns if c != target_col]
+    train_df = df[:n_train]
+    val_df = df[n_train:n_val]
+    test_df = df[n_val:]
 
-    FEATURES_train = df[features][:n_train]
-    FEATURES_valid = df[features][n_train:n_val]
-    FEATURES_test = df[features][n_val:]
+    features = [c for c in train_df.columns if c != target_col] 
+
+    FEATURES_train = train_df[features]
+    FEATURES_valid = val_df[features]
+    FEATURES_test = test_df[features]
 
     scaler_x = StandardScaler()
     scaler_y = MinMaxScaler() 
