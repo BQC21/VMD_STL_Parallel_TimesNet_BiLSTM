@@ -24,6 +24,7 @@ import torch.nn as nn
 # Utils 
 from utils.helpers import build_loaders, training_amp, build_loaders_for_imf
 from pipeline.metrics import compute_metrics
+from visualization.plots import visualize, scatter
 
 # DL model
 from models.TimesNet_BiLSTM import TimesNet_BiLSTM_Parallel, BiLSTM, TimesNet
@@ -103,6 +104,8 @@ def build_model_cfg(cfg_yaml: dict) -> SimpleNamespace:
     bl = m["bilstm"]
     # namespaces
     return SimpleNamespace(
+        seq_len=CFG["data"]["sequence_length"],
+        pred_len=CFG["data"]["prediction_length"],
         top_k=tn["top_k"],
         d_model=tn["d_model"],
         d_ff=tn["d_ff"],
@@ -143,7 +146,7 @@ if STL_CFG.get("enabled", True):
     else: # DKASC
         # Note: by default calculates STL on the entire series (without rolling).
         # If you want to avoid strict leakage, implement rolling/block in helpers.
-        stl = STL(df[TARGET], period=int(STL_CFG["period"]), robust=bool(STL_CFG["robust"]))
+        stl = STL(df[TARGET], period=int(STL_CFG["period"]))
         res = stl.fit()
         df["Active_Power_Trend"]    = res.trend
         df["Active_Power_Seasonal"] = res.seasonal
@@ -259,6 +262,19 @@ if VMD_CFG.get("enabled", True):
 loss_fn = nn.MSELoss()
 scaler = torch.cuda.amp.GradScaler(enabled=(DEVICE.type == 'cuda'))
 
+# prediction
+def predict_loader(model, dl, device):
+    model.eval()
+    preds, trues = [], []
+    with torch.no_grad():
+        for xb, yb in dl:
+            xb = xb.to(device)
+            with torch.autocast(device_type=device.type, dtype=torch.float16):
+                out = model(xb)
+            preds.append(out.detach().cpu().numpy())
+            trues.append(yb.detach().cpu().numpy())
+    return np.concatenate(preds, axis=0), np.concatenate(trues, axis=0)
+
 if VMD_CFG.get("enabled", True):
     models = []
     tiempos_imf = []
@@ -343,7 +359,94 @@ if VMD_CFG.get("enabled", True):
     tqdm.write(f"\n=== VMD Reconstruction Results ===")
     tqdm.write(f"RMSE: {RMSE:.4f}")
     tqdm.write(f"MAE:  {MAE:.4f}")
-    tqdm.write(f"R2:   {R2:.4f}")       
+    tqdm.write(f"R2:   {R2:.4f}")     
+
+    ##################################
+    # 4) Testing
+    ##################################
+    y_preds_inv_ref = None
+    y_true_inv_ref = None
+    per_imf_metrics = []
+
+    t0 = perf_counter()
+
+    for idx in range(K):
+        imf_col = f"mode{idx}"
+
+        # build dataframe for this IMF
+        modes_df = pd.DataFrame({
+            f"{SIGNAL_NAMES[sig_idx]}_{imf_col}": u_all[sig_idx][idx, :]
+            for sig_idx in range(len(SIGNALS))
+        })
+
+        _, _, test_dl, y_scaler, _ = build_loaders_for_imf(
+            df=modes_df, imf_col=imf_col,
+            seq_len=SEQ_LEN, pred_len=PRED_LEN, batch=int(CFG["experiment"]["batch_size"])
+        )
+
+        # load model
+        # model_i = BiLSTM(configs=cast(Any, MODEL_CFG)).to(DEVICE)
+        # model_i = TimesNet(configs=cast(Any, MODEL_CFG)).to(DEVICE)
+        model_i = TimesNet_BiLSTM_Parallel(configs=cast(Any, MODEL_CFG)).to(DEVICE)
+        ckpt_path = os.path.join(CKPT_DIR, f"model_imf_{idx}.pt")
+        if not os.path.exists(ckpt_path):
+            raise FileNotFoundError(f"No checkpoint found: {ckpt_path}")
+        model_i.load_state_dict(torch.load(ckpt_path, map_location=DEVICE))
+        model_i.eval()
+
+        # prediction
+        y_pred, y_true = predict_loader(model_i, test_dl, DEVICE)
+        y_pred_inv = y_scaler.inverse_transform(y_pred.reshape(-1, 1)).ravel()
+        y_true_inv = y_scaler.inverse_transform(y_true.reshape(-1, 1)).ravel()
+
+        # Reconstruct sum
+        if y_preds_inv_ref is None:
+            y_preds_inv_ref = y_pred_inv.copy()
+            y_true_inv_ref = y_true_inv.copy()
+        else:
+            n = min(len(y_preds_inv_ref), len(y_pred_inv))
+            y_preds_inv_ref[:n] += y_pred_inv[:n]
+            y_true_inv_ref = y_true_inv_ref[:n]
+
+    y_pred_test, y_true_test = predict_loader(model, test_dl, DEVICE)
+    y_pred_inv_test = y_scaler.inverse_transform(y_pred_test.reshape(-1, 1)).ravel()
+    y_true_inv_test = y_scaler.inverse_transform(y_true_test.reshape(-1, 1)).ravel()
+    print(f"shapes of true and predicted values: {y_true_inv_test.shape}, {y_pred_inv_test.shape}")
+
+    abs_errors = np.abs(y_true_inv_test - y_pred_inv_test)
+    squared_errors = (y_true_inv_test - y_pred_inv_test)**2
+    excel_file_path = os.path.join(CFG["training"]["log_dir"], 
+                        CFG["training"]["model_dir"],
+                        "Predictions_STL_TimesNet_BiLSTM_test.xlsx")
+    df_results = pd.DataFrame({'True_Values': y_true_inv_test,
+                                'Predicted_Values': y_pred_inv_test,
+                                'Absolute_Error': abs_errors,
+                                'Squared_Error': squared_errors})
+    df_results.to_excel(excel_file_path, index=False)
+
+    # Computer metrics (RMSE)
+    R2, MAE, RMSE = compute_metrics(y_true_inv_test, y_pred_inv_test)
+    tqdm.write(f"RMSE: {RMSE:.4f}")
+    tqdm.write(f"MAE:  {MAE:.4f}")
+    tqdm.write(f"R2:   {R2:.4f}")
+    tqdm.write(f"\n")
+
+    # Plot total prediction (saving optional)
+    try:
+        visualize(days=1, tt_inv=y_true_inv_test, tp_inv=y_pred_inv_test, TARGET=TARGET)
+        plt_history = os.path.join(CFG["training"]["plot_dir"],
+                                CFG["training"]["model_dir"],
+                                "Predictions_STL_VMD_TimesNet_BiLSTM_history.png")
+        scatter(y_true_inv_test, y_pred_inv_test)
+        plt_scatter = os.path.join(CFG["training"]["plot_dir"],
+                            CFG["training"]["model_dir"],
+                            "Predictions_STL_VMD_TimesNet_BiLSTM_scatter.png")
+        print(f"Final plots saved: {plt_history}, {plt_scatter}")
+    except Exception as e:
+        print(f"Warning: final plots could not be generated: {e}")
+
+    print(f"\nProcess completed in {perf_counter() - t0:.2f}s")
+
 else: # no VMD
     # Load sequences
     train_dl, val_dl, test_dl, y_scaler, __ = build_loaders(
@@ -393,3 +496,49 @@ else: # no VMD
     # Summary times 
     t_final = perf_counter() - t0
     tqdm.write(f"[Total time ={t_final:.2f}s | epoch_avg={stats_t.get('epoch_avg_s', np.nan):.2f}s | val_avg={stats_t.get('val_avg_s', np.nan):.2f}s")
+
+    ##################################
+    # 4) Testing
+    ##################################
+    model.load_state_dict(torch.load(model_path, 
+                                    map_location=DEVICE))
+    model.eval()
+
+    y_pred_test, y_true_test = predict_loader(model, test_dl, DEVICE)
+    y_pred_inv_test = y_scaler.inverse_transform(y_pred_test.reshape(-1, 1)).ravel()
+    y_true_inv_test = y_scaler.inverse_transform(y_true_test.reshape(-1, 1)).ravel()
+    print(f"shapes of true and predicted values: {y_true_inv_test.shape}, {y_pred_inv_test.shape}")
+
+    abs_errors = np.abs(y_true_inv_test - y_pred_inv_test)
+    squared_errors = (y_true_inv_test - y_pred_inv_test)**2
+    excel_file_path = os.path.join(CFG["training"]["log_dir"], 
+                        CFG["training"]["model_dir"],
+                        "Predictions_STL_TimesNet_BiLSTM_test.xlsx")
+    df_results = pd.DataFrame({'True_Values': y_true_inv_test,
+                                'Predicted_Values': y_pred_inv_test,
+                                'Absolute_Error': abs_errors,
+                                'Squared_Error': squared_errors})
+    df_results.to_excel(excel_file_path, index=False)
+
+    # Computer metrics (RMSE)
+    R2, MAE, RMSE = compute_metrics(y_true_inv_test, y_pred_inv_test)
+    tqdm.write(f"RMSE: {RMSE:.4f}")
+    tqdm.write(f"MAE:  {MAE:.4f}")
+    tqdm.write(f"R2:   {R2:.4f}")
+    tqdm.write(f"\n")
+
+    # Plot total prediction (saving optional)
+    try:
+        visualize(days=1, tt_inv=y_true_inv_test, tp_inv=y_pred_inv_test, TARGET=TARGET)
+        plt_history = os.path.join(CFG["training"]["plot_dir"],
+                                CFG["training"]["model_dir"],
+                                "Predictions_STL_TimesNet_BiLSTM_history.png")
+        scatter(y_true_inv_test, y_pred_inv_test)
+        plt_scatter = os.path.join(CFG["training"]["plot_dir"],
+                            CFG["training"]["model_dir"],
+                            "Predictions_STL_TimesNet_BiLSTM_scatter.png")
+        print(f"Final plots saved: {plt_history}, {plt_scatter}")
+    except Exception as e:
+        print(f"Warning: final plots could not be generated: {e}")
+
+    print(f"\nProcess completed in {perf_counter() - t0:.2f}s")

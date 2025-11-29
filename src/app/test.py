@@ -108,7 +108,7 @@ assert TARGET in df.columns, f"TARGET '{TARGET}' not found in {CSV_PATH}"
 if STL_CFG.get("enabled", True):
     # Note: by default calculates STL on the entire series (without rolling).
     # If you want to avoid strict leakage, implement rolling/block in helpers.
-    stl = STL(df[TARGET], period=int(STL_CFG["period"]), robust=bool(STL_CFG["robust"]))
+    stl = STL(df[TARGET], period=int(STL_CFG["period"]))
     res = stl.fit()
     df["Active_Power_Trend"]    = res.trend
     df["Active_Power_Seasonal"] = res.seasonal
