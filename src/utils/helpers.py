@@ -44,7 +44,7 @@ def build_loaders(df, seq_len=48, pred_len=1, batch=64):
     n_val = int(round(0.8 * n))
     print(f"Dataset size: train={n_train} | val={n_val - n_train} | test={n - n_val}")
 
-    target_col = f"Power (MW)"
+    target_col = f"Active_Power"
     features = [c for c in df.columns if c != target_col]
 
     FEATURES_train = df[features][:n_train]
@@ -84,7 +84,7 @@ def build_loaders_for_imf(df, imf_col = None,
     n_val = int(round(0.8 * n))
     print(f"Dataset size: train={n_train} | val={n_val - n_train} | test={n - n_val}")
 
-    target_col = f"Power (MW)_{imf_col}"
+    target_col = f"Active_Power_{imf_col}"
     features = [c for c in df.columns if c != target_col]
 
     FEATURES_train = df[features][:n_train]

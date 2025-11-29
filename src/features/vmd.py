@@ -137,6 +137,7 @@ def VMD(signal, alpha, tau, K, DC, init, tol, lambda_param):
 
         for i in range(1,K+1):
             uDiff=uDiff+1/float(T)*np.dot(u_hat_plus[n-1,:,i-1]-u_hat_plus[n-2,:,i-1],(np.conj(u_hat_plus[n-1,:,i-1]-u_hat_plus[n-2,:,i-1])).conj().T)
+  
         uDiff=np.abs(uDiff)
 
     # ------ Postprocessing and cleanup
@@ -166,3 +167,4 @@ def VMD(signal, alpha, tau, K, DC, init, tol, lambda_param):
         u_hat[:,k-1]=np.fft.fftshift(np.fft.fft(u[k-1,:])).conj().T
 
     return u,u_hat,omega
+

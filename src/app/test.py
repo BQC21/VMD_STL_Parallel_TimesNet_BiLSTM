@@ -119,57 +119,72 @@ if STL_CFG.get("enabled", True):
 # 3) Build base signals
 ##################################
 
-signal_0  = df['Total solar irradiance (W/m2)']
-signal_1  = df['Air temperature  (°C) ']
-signal_2  = df['Relative humidity (%)']
+signal_0  = df['Wind_Speed']
+signal_1  = df['Weather_Temperature_Celsius']
+signal_2  = df['Global_Horizontal_Radiation']
+signal_3  = df['Max_Wind_Speed']
+signal_4  = df['Pyranometer_1']
+signal_5  = df['Temperature_Probe_1']
+signal_6  = df['Temperature_Probe_2']
+signal_7  = df['Active_Energy_Received']
 
 if STL_CFG.get("enabled", True):
-    signal_3  = df['Active_Power_Trend']
-    signal_4  = df['Active_Power_Seasonal']
-    signal_5 = df['Active_Power_Residual']
-    signal_6 = df[TARGET]
+    signal_8  = df['Active_Power_Trend']
+    signal_9  = df['Active_Power_Seasonal']
+    signal_10 = df['Active_Power_Residual']
+    signal_11 = df['Active_Power']
 
     SIGNALS = [
-        signal_0, signal_1, signal_2, signal_3, signal_4, signal_5, signal_6
+        signal_0, signal_1, signal_2, signal_3, signal_4, signal_5,
+        signal_6, signal_7, signal_8, signal_9, signal_10, signal_11
     ]
     SIGNAL_NAMES = [
-        'Total solar irradiance (W/m2)', 'Air temperature  (°C) ', 'Relative humidity (%)',
-        'Active_Power_Trend', 'Active_Power_Seasonal','Active_Power_Residual', 'Power (MW)'
+        'Wind_Speed', 'Weather_Temperature_Celsius', 'Global_Horizontal_Radiation',
+        'Max_Wind_Speed', 'Pyranometer_1', 'Temperature_Probe_1', 'Temperature_Probe_2',
+        'Active_Energy_Received', 'Active_Power_Trend', 'Active_Power_Seasonal',
+        'Active_Power_Residual', 'Active_Power'
     ]
 else:
-    signal_3 = df['Power (MW)']
+    signal_8  = df['Active_Power']
 
     SIGNALS = [
-        signal_0, signal_1, signal_2, signal_3
+        signal_0, signal_1, signal_2, signal_3, signal_4, signal_5,
+        signal_6, signal_7, signal_8
     ]
     SIGNAL_NAMES = [
-        'Total solar irradiance (W/m2)', 'Air temperature (°C)', 
-        'Relative humidity (%)', 'Power (MW)'
+        'Wind_Speed', 'Weather_Temperature_Celsius', 'Global_Horizontal_Radiation',
+        'Max_Wind_Speed', 'Pyranometer_1', 'Temperature_Probe_1', 'Temperature_Probe_2',
+        'Active_Energy_Received', 'Active_Power'
     ]
 
 # =========================================================
 # 3. VMD decomposition (optional, according to config)
 # =========================================================
 
-K = int(VMD_CFG["k"])
-alpha = float(VMD_CFG["alpha"])
-tau   = float(VMD_CFG["tau"])
-DC    = bool(VMD_CFG["dc"])
-init  = int(VMD_CFG["init"])
-tol   = float(VMD_CFG["tol"])
-lambda_param = float(VMD_CFG.get("lambda_param", 0))
+if VMD_CFG.get("enabled", True):
+    K = int(VMD_CFG["k"])
+    alpha = float(VMD_CFG["alpha"])
+    tau   = float(VMD_CFG["tau"])
+    DC    = bool(VMD_CFG["dc"])
+    init  = int(VMD_CFG["init"])
+    tol   = float(VMD_CFG["tol"])
+    lambda_param = float(VMD_CFG.get("lambda_param", 0))
 
-u_all = []
-for sig_idx, signal in enumerate(SIGNALS):
-    print(f"VMD → {SIGNAL_NAMES[sig_idx]}")
-    u_signal, _, _ = VMD(signal, alpha, tau, K, DC, init, tol, lambda_param)
-    u_signal = np.array(u_signal)
-    if u_signal.shape[0] != K and u_signal.shape[1] == K:
-        u_signal = u_signal.T
-    assert u_signal.shape[0] == K, f"Unexpected IMF shape for {SIGNAL_NAMES[sig_idx]}"
-    u_all.append(u_signal)
+    u_all = []  # list of arrays (K, N) per signal
 
-print("VMD complete. Example:", u_all[0].shape)
+    for sig_idx, signal in enumerate(SIGNALS):
+        print(f"Processing signal: {SIGNAL_NAMES[sig_idx]}")
+        u_signal, _, _ = VMD(signal, alpha, tau, K, DC, init, tol, lambda_param)
+        # u_signal typically comes as (N, K) or similar → normalize to (K, N)
+        u_signal = np.array(u_signal).T if np.array(u_signal).shape[0] != K else np.array(u_signal)
+        u_all.append(u_signal)
+        print(f"Completed VMD for signal: {SIGNAL_NAMES[sig_idx]}")
+
+    print("VMD processing completed for all signals.")
+    print(f"Total signals processed: {len(SIGNALS)}")
+    print(f"Shape example u_all[0]: {np.array(u_all[0]).shape}")  # (K, N) = (3, _)
+
+    print("VMD complete. Example:", u_all[0].shape)
 
 ##################################
 # 4) Testing
@@ -280,12 +295,12 @@ else:
     )
 
     # Model + optimizer
-    # model = BiLSTM(configs=cast(Any, MODEL_CFG)).to(DEVICE)
-    model = TimesNet(configs=cast(Any, MODEL_CFG)).to(DEVICE)
+    model = BiLSTM(configs=cast(Any, MODEL_CFG)).to(DEVICE)
+    # model = TimesNet(configs=cast(Any, MODEL_CFG)).to(DEVICE)
     # model = TimesNet_BiLSTM_Parallel(configs=cast(Any, MODEL_CFG)).to(DEVICE)
     optim = torch.optim.Adam(model.parameters(), lr=LR, weight_decay=1e-4)
 
-    model_path = os.path.join(CKPT_DIR, f"TimesNet_best_model.pt")
+    model_path = os.path.join(CKPT_DIR, f"STL_TimesNet_BiLSTM_best_model.pt")
     model.load_state_dict(torch.load(model_path, 
                                     map_location=DEVICE))
     model.eval()
@@ -297,7 +312,7 @@ else:
 
     abs_errors = np.abs(y_true_inv - y_pred_inv)
     squared_errors = (y_true_inv - y_pred_inv)**2
-    excel_file_path = "/home/brakine/VMD_STL_Parallel_TimesNet_BiLSTM_POWERFORECASTING/outputs/logs/TimesNet/Predictions_TimesNet_test.xlsx"
+    excel_file_path = "/home/brakine/VMD_STL_Parallel_TimesNet_BiLSTM_POWERFORECASTING/outputs/logs/STL_TimesNet_BiLSTM/Predictions_STL_TimesNet_BiLSTM_test.xlsx"
     df_results = pd.DataFrame({'True_Values': y_true_inv,
                                 'Predicted_Values': y_pred_inv,
                                 'Absolute_Error': abs_errors,
@@ -317,7 +332,7 @@ else:
 
     # Plot total prediction (saving optional)
     try:
-        visualize(days=1, tt_inv=y_true_inv, tp_inv=y_pred_inv, TARGET="Power (MW)")
+        visualize(days=1, tt_inv=y_true_inv, tp_inv=y_pred_inv, TARGET="Active Power (KW)")
         # plt_recon = os.path.join(PLOTS_DIR, "Reconstructed_Sum_series.png")
         scatter(y_true_inv, y_pred_inv)
         # plt_recon_scatter = os.path.join(PLOTS_DIR, "Reconstructed_Sum_scatter.png")

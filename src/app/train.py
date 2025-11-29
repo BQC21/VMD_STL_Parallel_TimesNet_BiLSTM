@@ -143,32 +143,42 @@ if STL_CFG.get("enabled", True):
 # 3) Build base signals (7 in total)
 ##################################
 
-signal_0  = df['Total solar irradiance (W/m2)']
-signal_1  = df['Air temperature  (°C) ']
-signal_2  = df['Relative humidity (%)']
+signal_0  = df['Wind_Speed']
+signal_1  = df['Weather_Temperature_Celsius']
+signal_2  = df['Global_Horizontal_Radiation']
+signal_3  = df['Max_Wind_Speed']
+signal_4  = df['Pyranometer_1']
+signal_5  = df['Temperature_Probe_1']
+signal_6  = df['Temperature_Probe_2']
+signal_7  = df['Active_Energy_Received']
 
 if STL_CFG.get("enabled", True):
-    signal_3  = df['Active_Power_Trend']
-    signal_4  = df['Active_Power_Seasonal']
-    signal_5 = df['Active_Power_Residual']
-    signal_6 = df[TARGET]
+    signal_8  = df['Active_Power_Trend']
+    signal_9  = df['Active_Power_Seasonal']
+    signal_10 = df['Active_Power_Residual']
+    signal_11 = df['Active_Power']
 
     SIGNALS = [
-        signal_0, signal_1, signal_2, signal_3, signal_4, signal_5, signal_6
+        signal_0, signal_1, signal_2, signal_3, signal_4, signal_5,
+        signal_6, signal_7, signal_8, signal_9, signal_10, signal_11
     ]
     SIGNAL_NAMES = [
-        'Total solar irradiance (W/m2)', 'Air temperature  (°C) ', 'Relative humidity (%)',
-        'Active_Power_Trend', 'Active_Power_Seasonal','Active_Power_Residual', 'Power (MW)'
+        'Wind_Speed', 'Weather_Temperature_Celsius', 'Global_Horizontal_Radiation',
+        'Max_Wind_Speed', 'Pyranometer_1', 'Temperature_Probe_1', 'Temperature_Probe_2',
+        'Active_Energy_Received', 'Active_Power_Trend', 'Active_Power_Seasonal',
+        'Active_Power_Residual', 'Active_Power'
     ]
 else:
-    signal_3 = df[TARGET]
+    signal_8  = df['Active_Power']
 
     SIGNALS = [
-        signal_0, signal_1, signal_2, signal_3
+        signal_0, signal_1, signal_2, signal_3, signal_4, signal_5,
+        signal_6, signal_7, signal_8
     ]
     SIGNAL_NAMES = [
-        'Total solar irradiance (W/m2)', 'Air temperature (°C)', 
-        'Relative humidity (%)', 'Power (MW)'
+        'Wind_Speed', 'Weather_Temperature_Celsius', 'Global_Horizontal_Radiation',
+        'Max_Wind_Speed', 'Pyranometer_1', 'Temperature_Probe_1', 'Temperature_Probe_2',
+        'Active_Energy_Received', 'Active_Power'
     ]
 
 print(f"Total signals used: {len(SIGNALS)}")
@@ -210,10 +220,11 @@ scaler = torch.cuda.amp.GradScaler(enabled=(DEVICE.type == 'cuda'))
 if VMD_CFG.get("enabled", True):
     models = []
     tiempos_imf = []
-# Y_pred_total = np.zeros(int(0.2*len(df)-SEQ_LEN-PRED_LEN+1))  # Adjust size as needed (20% of IMF data length)
-# Y_real_total = np.zeros(int(0.2*len(df)-SEQ_LEN-PRED_LEN+1)) 
-Y_pred_total = np.zeros(6893)  # Adjust size as needed (20% of IMF data length)
-Y_real_total = np.zeros(6893) 
+
+Y_pred_total = np.zeros(int(0.2*len(df)-SEQ_LEN-PRED_LEN+1))  # Adjust size as needed (20% of IMF data length)
+Y_real_total = np.zeros(int(0.2*len(df)-SEQ_LEN-PRED_LEN+1)) 
+# Y_pred_total = np.zeros(10464)  # Adjust size as needed (20% of IMF data length)
+# Y_real_total = np.zeros(10464) 
 print(f"Initial Y_total shape: {Y_pred_total.shape}")
 print(f"Initial Y_real_total shape: {Y_real_total.shape}")
 
@@ -325,7 +336,7 @@ else:
 
     abs_errors = np.abs(y_true_inv - y_pred_inv)
     squared_errors = (y_true_inv - y_pred_inv)**2
-    excel_file_path = "/home/brakine/VMD_STL_Parallel_TimesNet_BiLSTM_POWERFORECASTING/outputs/logs/BiLSTM/Predictions_BiLSTM_valid.xlsx"
+    excel_file_path = "/home/brakine/VMD_STL_Parallel_TimesNet_BiLSTM_POWERFORECASTING/outputs/logs/STL_TimesNet_BiLSTM/Predictions_STL_TimesNet_BiLSTM_valid.xlsx"
     df_results = pd.DataFrame({'True_Values': y_true_inv,
                                 'Predicted_Values': y_pred_inv,
                                 'Absolute_Error': abs_errors,

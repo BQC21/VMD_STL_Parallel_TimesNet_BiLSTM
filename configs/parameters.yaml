@@ -1,7 +1,7 @@
 # General configuration
 experiment:
   name: PowerForecasting_STL_VMD
-  seed: 42 # change value
+  seed: 42
   device: "cuda"  # "cuda" or "cpu"
   epochs: 30
   batch_size: 64
@@ -12,10 +12,8 @@ experiment:
 
 # Dataset configuration
 data:
-  # root_path: "data/processed/dataset_Laundry_modified.csv"
-  root_path: "data/dataset_figshare_processed.csv"
-  # target: "Active_Power" # for Yulara
-  target: "Power (MW)" # for figshare
+  root_path: "data/processed/dataset_Laundry_modified.csv"
+  target: "Active_Power"
   sequence_length: 48
   prediction_length: 1
   train_split: 0.6
@@ -26,34 +24,33 @@ data:
 
 # STL decomposition parameters
 stl:
-  enabled: True # False to not use STL
+  enabled: true
   period: 9 
   robust: true
   rolling_window: false 
 
 # VMD decomposition parameters
 vmd:
-  enabled: True # False to not use VMD
-  alpha: 0.025   # bandwidth constraint
+  alpha: 0.1     # bandwidth constraint
   tau: 0
   k: 3        # number of modes
   dc: 0
   init: 1
   tol: 1e-7
-  lambda_param: 75  # Lagrange multiplier for reconstruction constraint
+  lambda_param: 85  # Lagrange multiplier for reconstruction constraint
 
 # Model configuration
 model:
   name: "TimesNet_BiLSTM"
-  input_features: 6 # switch to 3 if STL is deactivated
+  input_features: 11
   output_features: 1
 
   timesnet:
     d_model: 32
     d_ff: 8
-    num_kernels: 7 
+    num_kernels: 7
     num_times_blocks: 2
-    top_k: 2 
+    top_k: 2
     dropout: 0.1188
 
   bilstm:
@@ -67,6 +64,6 @@ training:
   loss_function: "mse"
   metrics: ["mae", "rmse", "r2"]
   checkpoint_dir: "outputs/models"
-  model_dir: "STL_VMD_TimesNet_BiLSTM"
+  log_dir: "outputs/logs"
   save_best_only: true
   verbose: true
