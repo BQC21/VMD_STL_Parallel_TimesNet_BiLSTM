@@ -10,10 +10,10 @@ experiment:
 
 # Dataset configuration
 data:
-  root_path: "data/dataset_Laundry_modified.csv"
-  # root_path: "data/dataset_figshare_modified.csv"
-  target: "Active_Power" # DKSAC
-  # target: "Power (MW)" # figshare
+  # root_path: "data/dataset_Laundry_modified.csv"
+  root_path: "data/dataset_figshare_processed.csv"
+  # target: "Active_Power" # DKSAC
+  target: "Power (MW)" # figshare
   sequence_length: 48
   prediction_length: 1
 
@@ -36,8 +36,8 @@ vmd:
 # Model configuration
 model:
   name: "TimesNet_BiLSTM"
-  input_features: 11 # switch to 8 if STL are disabled (DKASC)
-  # input_features: 6 # switch to 3 if STL are disabled (figshare)
+  # input_features: 11 # switch to 8 if STL are disabled (DKASC)
+  input_features: 6 # switch to 3 if STL are disabled (figshare)
   output_features: 1
 
   timesnet:
@@ -59,19 +59,19 @@ training:
   loss_function: "mse"
   metrics: ["mae", "rmse", "r2"]
 
-  # checkpoint_dir: "outputs/Figshare/models"
-  checkpoint_dir: "outputs/Yulara/models"
+  checkpoint_dir: "outputs/Figshare/models"
+  # checkpoint_dir: "outputs/Yulara/models"
   
   # model_dir: "TimesNet_BiLSTM"
   # model_dir: "STL_TimesNet_BiLSTM"
   # model_dir: "VMD_TimesNet_BiLSTM"
   model_dir: "STL_VMD_TimesNet_BiLSTM"
   
-  # log_dir: "outputs/Figshare/logs"
-  log_dir: "outputs/Yulara/logs"
+  log_dir: "outputs/Figshare/logs"
+  # log_dir: "outputs/Yulara/logs"
 
-  # plot_dir: "outputs/Figshare/plots"
-  plot_dir: "outputs/Yulara/plots"
+  plot_dir: "outputs/Figshare/plots"
+  # plot_dir: "outputs/Yulara/plots"
 
   save_best_only: true
   verbose: true

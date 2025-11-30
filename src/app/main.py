@@ -134,10 +134,10 @@ print(f"Dataset loaded from {CSV_PATH} \n")
 ##################################
 
 if STL_CFG.get("enabled", True):
-    if CSV_PATH.endswith("figshare_modified.csv"):
+    if CSV_PATH.endswith("figshare_processed.csv"):
         # Note: by default calculates STL on the entire series (without rolling).
         # If you want to avoid strict leakage, implement rolling/block in helpers.
-        stl = STL(df[TARGET], period=int(STL_CFG["period"]), robust=bool(STL_CFG["robust"]))
+        stl = STL(df[TARGET], period=int(STL_CFG["period"]))
         res = stl.fit()
         df["Power_MW_Trend"]    = res.trend
         df["Power_MW_Seasonal"] = res.seasonal
@@ -158,15 +158,15 @@ if STL_CFG.get("enabled", True):
 # 3) Build base signals 
 ##################################
 
-if CSV_PATH.endswith("figshare_modified.csv"):
+if CSV_PATH.endswith("figshare_processed.csv"):
     signal_0  = df['Total solar irradiance (W/m2)']
     signal_1  = df['Air temperature  (°C) ']
     signal_2  = df['Relative humidity (%)']
 
     if STL_CFG.get("enabled", True):
-        signal_3  = df['Active_Power_Trend']
-        signal_4  = df['Active_Power_Seasonal']
-        signal_5 = df['Active_Power_Residual']
+        signal_3  = df['Power_MW_Trend']
+        signal_4  = df['Power_MW_Seasonal']
+        signal_5 = df['Power_MW_Residual']
         signal_6 = df[TARGET]
 
         SIGNALS = [
@@ -279,8 +279,11 @@ if VMD_CFG.get("enabled", True):
     models = []
     tiempos_imf = []
 
-Y_pred_total = np.zeros(int(0.2*len(df)-SEQ_LEN-PRED_LEN+1))  # Adjust size as needed (20% of data length)
-Y_real_total = np.zeros(int(0.2*len(df)-SEQ_LEN-PRED_LEN+1)) 
+# Y_pred_total = np.zeros(int(0.2*len(df)-SEQ_LEN-PRED_LEN+1))  # Adjust size as needed (20% of data length)
+# Y_real_total = np.zeros(int(0.2*len(df)-SEQ_LEN-PRED_LEN+1)) 
+Y_real_total = np.zeros(6893) # Figshare
+Y_pred_total = np.zeros(6893) # Figshare
+    
 print(f"Initial Y_total shape: {Y_pred_total.shape}")
 print(f"Initial Y_real_total shape: {Y_real_total.shape} \n")
 
@@ -467,7 +470,7 @@ else: # no VMD
     optim = torch.optim.Adam(model.parameters(), lr=LR, weight_decay=1e-4)
 
     # Use a filename that doesn't depend on VMD-specific variables when VMD is disabled
-    model_path = os.path.join(CKPT_DIR, "TimesNet_BiLSTM_best_model.pt")
+    model_path = os.path.join(CKPT_DIR, "STL_TimesNet_BiLSTM_best_model.pt")
 
     # Training with AMP + early stopping
     __, __, stats_t, vt, vp = training_amp(
@@ -486,7 +489,7 @@ else: # no VMD
     squared_errors = (y_true_inv - y_pred_inv)**2
     excel_file_path = os.path.join(CFG["training"]["log_dir"], 
                         CFG["training"]["model_dir"],
-                        "Predictions_TimesNet_BiLSTM_valid.xlsx")
+                        "Predictions_STL_TimesNet_BiLSTM_valid.xlsx")
     df_results = pd.DataFrame({'True_Values': y_true_inv,
                                 'Predicted_Values': y_pred_inv,
                                 'Absolute_Error': abs_errors,
@@ -521,7 +524,7 @@ else: # no VMD
     squared_errors = (y_true_inv_test - y_pred_inv_test)**2
     excel_file_path = os.path.join(CFG["training"]["log_dir"], 
                         CFG["training"]["model_dir"],
-                        "Predictions_TimesNet_BiLSTM_test.xlsx")
+                        "Predictions_STL_TimesNet_BiLSTM_test.xlsx")
     df_results = pd.DataFrame({'True_Values': y_true_inv_test,
                                 'Predicted_Values': y_pred_inv_test,
                                 'Absolute_Error': abs_errors,
@@ -540,11 +543,11 @@ else: # no VMD
         visualize(days=1, tt_inv=y_true_inv_test, tp_inv=y_pred_inv_test, TARGET=TARGET)
         plt_history = os.path.join(CFG["training"]["plot_dir"],
                                 CFG["training"]["model_dir"],
-                                "Predictions_TimesNet_BiLSTM_history.png")
+                                "Predictions_STL_TimesNet_BiLSTM_history.png")
         scatter(y_true_inv_test, y_pred_inv_test)
         plt_scatter = os.path.join(CFG["training"]["plot_dir"],
                             CFG["training"]["model_dir"],
-                            "Predictions_TimesNet_BiLSTM_scatter.png")
+                            "Predictions_STL_TimesNet_BiLSTM_scatter.png")
         print(f"Final plots saved: {plt_history}, {plt_scatter}")
     except Exception as e:
         print(f"Warning: final plots could not be generated: {e}")

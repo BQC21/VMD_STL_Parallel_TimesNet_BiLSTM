@@ -183,8 +183,10 @@ def training_amp(model, device, loss_fn, scaler, optim,
 
     from numpy import mean
 
-    true_val = np.zeros(int(0.2*len(df)-seq_len-pred_len+1))  
-    pred_val = np.zeros(int(0.2*len(df)-seq_len-pred_len+1))  
+    # true_val = np.zeros(int(0.2*len(df)-seq_len-pred_len+1))  
+    # pred_val = np.zeros(int(0.2*len(df)-seq_len-pred_len+1))  
+    true_val = np.zeros(6893) # Figshare
+    pred_val = np.zeros(6893) # Figshare
     
     loss_train, loss_valid = [], []
     best_val = np.inf
