@@ -21,6 +21,20 @@ Building upon the model described in [3], I applied data-processing steps from t
 - Source: Desert Knowledge Australia Solar Centre (DKASC) [1]
 - Source: Solar station site 8 (Nominal capacity-30MW) [2]
 
+### Pre-processing details  
+**Source: Figshare [2]**
+- Data processing notebook: `/notebooks/Study_data_figshare.ipynb`  
+- Processed dataset: `/data/processed/dataset_figshare_modified.csv`  
+- Data split: 60 % training, 20 % validation, 20 % test
+
+**Source: DKASC [1]**
+- Several features were rejected: *Current_Phase_Average_Mean*, *Weather_Daily_Rainfall*, *Hail_Accumulation*, *Wind_Direction*, and *Air_Pressure*.  
+- The feature *Active_Energy_Delivered_Received* was modified to only include the “Received” portion (renamed *Active_Energy_Received*).  
+- Data processing notebook: `/notebooks/Modify_data_Yulara.ipynb`  
+- Processed dataset: `/data/processed/dataset_Laundry_modified.csv`  
+- Data split: 60 % training, 20 % validation, 20 % test
+
+
 ## Environment & Testing  
 **Hardware configuration**  
 - GPU: NVIDIA GeForce RTX 3050  
@@ -72,13 +86,19 @@ The proposed model improved the metrics over [2], considering MAE, RMSE and R²:
 | Model                                   | MAE     | RMSE    | R²     | dataset |
 |----------------------------------------|---------|---------|--------|--------|
 | PA [TimesNet-BiLSTM]                   | 9.3171  | 18.6826 | 0.9534 | DKASC |
-| STL – PA [TimesNet-BiLSTM]             | 9.8378  | 17.7827 | 0.9577 | DKASC |
+| STL – PA [TimesNet-BiLSTM]             | 6.5036  | 10.8280 | 0.9864 | DKASC |
 | VMD-PA [TimesNet-BiLSTM]               | 4.1885  | 6.3676  | 0.9944 | DKASC |
-| STL – VMD – PA [TimesNet-BiLSTM] (purpose)      | 4.6801  | 7.0746  | 0.9931 | DKASC |
+| STL – VMD – PA [TimesNet-BiLSTM] (purpose)      | 3.6986  | 6.8266  | 0.9936 | DKASC |
 | PA [TimesNet-BiLSTM]                       | 3.0263  | 4.3729  | 0.6204 | Solar station site 8 |
-| STL – PA [TimesNet-BiLSTM]                 | 0.7613  | 1.0206  | 0.9793 | Solar station site 8 |
+| STL – PA [TimesNet-BiLSTM]                 | 0.4336  | 0.5817  | 0.9933 | Solar station site 8 |
 | VMD-PA [TimesNet-BiLSTM]                   | 2.9789  | 4.3131  | 0.6255 | Solar station site 8 |
-| STL – VMD – PA [TimesNet-BiLSTM] (purpose) | 0.4680  | 0.6055  | 0.9926 | Solar station site 8 |
+| STL – VMD – PA [TimesNet-BiLSTM] (purpose) | 0.3234  | 0.4349  | 0.9962 | Solar station site 8 |
+
+![History plot of STL_VMD_PA[TimesNet_BiLSTM] on testing set for DKASC](/outputs/Yulara/plot/STL_VMD_PA_TimesNet_BiLSTM_history.png)
+![History plot of STL_VMD_PA[TimesNet_BiLSTM] on testing set for Solar station site 8](/outputs/Figshare/plots/STL_VMD_PA_TimesNet_BiLSTM_history.png)
+<!-- ![Scatter plot of STL_VMD_PA[TimesNet_BiLSTM] on testing set for DKASC](/outputs/Yulara/plots/STL_VMD_PA_TimesNet_BiLSTM_scatter.png)
+![Scatter plot of STL_VMD_PA[TimesNet_BiLSTM] on testing set for Solar station site 8](/outputs/Yulara/plots/STL_VMD_PA_TimesNet_BiLSTM_scatter.png) -->
+
 
 ## Run
 
