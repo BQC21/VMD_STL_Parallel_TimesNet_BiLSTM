@@ -94,8 +94,8 @@ The proposed model improved the metrics over [2], considering MAE, RMSE and R²:
 | VMD-PA [TimesNet-BiLSTM]                   | 2.9789  | 4.3131  | 0.6255 | Solar station site 8 |
 | STL – VMD – PA [TimesNet-BiLSTM] (purpose) | 0.3234  | 0.4349  | 0.9962 | Solar station site 8 |
 
-![History plot of STL_VMD_PA[TimesNet_BiLSTM] on testing set for DKASC](/outputs/Yulara/plots/STL_VMD_PA_TimesNet_BiLSTM_history.png)
-![History plot of STL_VMD_PA[TimesNet_BiLSTM] on testing set for Solar station site 8](/outputs/Figshare/plots/STL_VMD_PA_TimesNet_BiLSTM_history.png)
+![History plot of STL_VMD_PA[TimesNet_BiLSTM] on testing set for DKASC](/outputs/Yulara/plots/STL_VMD_TimesNet_BiLSTM/STL_VMD_PA_TimesNet_BiLSTM_history.png)
+![History plot of STL_VMD_PA[TimesNet_BiLSTM] on testing set for Solar station site 8](/outputs/Figshare/plots/STL_VMD_TimesNet_BiLSTM/STL_VMD_TimesNet_BiLSTM_history.png)
 <!-- ![Scatter plot of STL_VMD_PA[TimesNet_BiLSTM] on testing set for DKASC](/outputs/Yulara/plots/STL_VMD_PA_TimesNet_BiLSTM_scatter.png)
 ![Scatter plot of STL_VMD_PA[TimesNet_BiLSTM] on testing set for Solar station site 8](/outputs/Yulara/plots/STL_VMD_PA_TimesNet_BiLSTM_scatter.png) -->
 
