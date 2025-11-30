@@ -350,7 +350,7 @@ if VMD_CFG.get("enabled", True):
     squared_errors = (Y_real_total - Y_pred_total)**2
     excel_file_path = os.path.join(CFG["training"]["log_dir"], 
                         CFG["training"]["model_dir"],
-                        "Predictions_VMD_TimesNet_BiLSTM_valid.xlsx")
+                        "Predictions_STL_VMD_TimesNet_BiLSTM_valid.xlsx")
     df_results = pd.DataFrame({'True_Values': Y_real_total,
                                 'Predicted_Values': Y_pred_total,
                                 'Absolute_Error': abs_errors,
@@ -385,8 +385,7 @@ if VMD_CFG.get("enabled", True):
         _, _, test_dl, y_scaler, _ = build_loaders_for_imf(
             df=modes_df, imf_col=imf_col,
             seq_len=SEQ_LEN, pred_len=PRED_LEN, 
-            batch=int(CFG["experiment"]["batch_size"]),
-            target_col=TARGET
+            batch=BATCH_SIZE, target_col=TARGET
         )
 
         # load model
@@ -411,38 +410,45 @@ if VMD_CFG.get("enabled", True):
             y_preds_inv_ref[:n] += y_pred_inv[:n]
             y_true_inv_ref = y_true_inv_ref[:n]
 
-    y_pred_inv_test = y_scaler.inverse_transform(y_preds_inv_ref.reshape(-1, 1)).ravel()
-    y_true_inv_test = y_scaler.inverse_transform(y_true_inv_ref.reshape(-1, 1)).ravel()
-    print(f"shapes of true and predicted values: {y_true_inv_test.shape}, {y_pred_inv_test.shape}")
+    print(f"shapes of true and predicted values: {y_true_inv_ref.shape}, {y_preds_inv_ref.shape}")
 
-    abs_errors = np.abs(y_true_inv_test - y_pred_inv_test)
-    squared_errors = (y_true_inv_test - y_pred_inv_test)**2
+    abs_errors = np.abs(y_true_inv_ref - y_preds_inv_ref)
+    squared_errors = (y_true_inv_ref - y_preds_inv_ref)**2
     excel_file_path = os.path.join(CFG["training"]["log_dir"], 
                         CFG["training"]["model_dir"],
-                        "Predictions_TimesNet_BiLSTM_test.xlsx")
-    df_results = pd.DataFrame({'True_Values': y_true_inv_test,
-                                'Predicted_Values': y_pred_inv_test,
+                        "Predictions_STL_VMD_TimesNet_BiLSTM_test.xlsx")    
+    df_results = pd.DataFrame({'True_Values': y_true_inv_ref,
+                                'Predicted_Values': y_preds_inv_ref,
                                 'Absolute_Error': abs_errors,
                                 'Squared_Error': squared_errors})
     df_results.to_excel(excel_file_path, index=False)
 
-    # Computer metrics (RMSE)
-    R2, MAE, RMSE = compute_metrics(y_true_inv_test, y_pred_inv_test)
-    tqdm.write(f"RMSE: {RMSE:.4f}")
-    tqdm.write(f"MAE:  {MAE:.4f}")
-    tqdm.write(f"R2:   {R2:.4f}")
+
+    # =========================================================
+    # 5. METRICS 
+    # =========================================================
+    final_R2, final_MAE, final_RMSE = compute_metrics(y_true_inv_ref, y_preds_inv_ref)
+
+    print("\n=== MMetrics per IMF ===")
+    for m in per_imf_metrics:
+        print(f"IMF_{m['IMF']}: MAE={m['MAE']:.4f} | RMSE={m['RMSE']:.4f} | R2={m['R2']:.4f} | n={m['n']}")
+
+    print("\n=== FINAL METRICS (Sum of IMFs, real scale) ===")
+    print(f"MAE : {final_MAE:.4f}")
+    print(f"RMSE: {final_RMSE:.4f}")
+    print(f"R²  : {final_R2:.4f}")
     tqdm.write(f"\n")
 
     # Plot total prediction (saving optional)
     try:
-        visualize(days=1, tt_inv=y_true_inv_test, tp_inv=y_pred_inv_test, TARGET=TARGET)
+        visualize(days=1, tt_inv=y_true_inv_ref, tp_inv=y_preds_inv_ref, TARGET=TARGET)
         plt_history = os.path.join(CFG["training"]["plot_dir"],
                                 CFG["training"]["model_dir"],
-                                "Predictions_VMD_TimesNet_BiLSTM_history.png")
-        scatter(y_true_inv_test, y_pred_inv_test)
+                                "Predictions_STL_VMD_TimesNet_BiLSTM_history.png")
+        scatter(y_true_inv_ref, y_preds_inv_ref)
         plt_scatter = os.path.join(CFG["training"]["plot_dir"],
                             CFG["training"]["model_dir"],
-                            "Predictions_VMD_TimesNet_BiLSTM_scatter.png")
+                            "Predictions_STL_VMD_TimesNet_BiLSTM_scatter.png")
         print(f"Final plots saved: {plt_history}, {plt_scatter}")
     except Exception as e:
         print(f"Warning: final plots could not be generated: {e}")

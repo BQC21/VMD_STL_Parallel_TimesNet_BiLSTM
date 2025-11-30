@@ -19,7 +19,7 @@ data:
 
 # STL decomposition parameters
 stl:
-  enabled: false
+  enabled: true
   period: 9 
 
 # VMD decomposition parameters
@@ -31,12 +31,12 @@ vmd:
   init: 1
   tol: 1e-7
   lambda_param: 75  # Lagrange multiplier for reconstruction constraint
-  enabled: false
+  enabled: true
 
 # Model configuration
 model:
   name: "TimesNet_BiLSTM"
-  input_features: 8 # switch to 8 if STL are disabled (DKASC)
+  input_features: 11 # switch to 8 if STL are disabled (DKASC)
   # input_features: 6 # switch to 3 if STL are disabled (figshare)
   output_features: 1
 
@@ -64,8 +64,8 @@ training:
   
   # model_dir: "TimesNet_BiLSTM"
   # model_dir: "STL_TimesNet_BiLSTM"
-  model_dir: "VMD_TimesNet_BiLSTM"
-  # model_dir: "STL_VMD_TimesNet_BiLSTM"
+  # model_dir: "VMD_TimesNet_BiLSTM"
+  model_dir: "STL_VMD_TimesNet_BiLSTM"
   
   # log_dir: "outputs/Figshare/logs"
   log_dir: "outputs/Yulara/logs"

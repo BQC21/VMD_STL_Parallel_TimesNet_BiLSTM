@@ -86,7 +86,8 @@ def build_loaders_for_imf(df, imf_col = None,
     val_df = df[n_train:n_val]
     test_df = df[n_val:]
 
-    features = [c for c in train_df.columns if c != target_col] 
+    target_col_imf = f"{target_col}_{imf_col}"
+    features = [c for c in train_df.columns if c != target_col_imf] 
 
     FEATURES_train = train_df[features]
     FEATURES_valid = val_df[features]
@@ -108,21 +109,21 @@ def build_loaders_for_imf(df, imf_col = None,
     X_val_arr = _to_real_array(FEATURES_valid)
     X_test_arr = _to_real_array(FEATURES_test)
 
-    y_train_arr = df[[target_col]].iloc[:n_train].values
+    y_train_arr = train_df[target_col_imf].values
     if np.iscomplexobj(y_train_arr):
         warnings.warn("Complex values found in target -- discarding imaginary part and using real part.")
         y_train_arr = np.real(y_train_arr)
-    y_train_arr = y_train_arr.astype(np.float64)
+    y_train_arr = y_train_arr.astype(np.float64).reshape(-1, 1)
 
-    y_val_arr = df[[target_col]].iloc[n_train:n_val].values
+    y_val_arr = val_df[target_col_imf].values
     if np.iscomplexobj(y_val_arr):
         y_val_arr = np.real(y_val_arr)
-    y_val_arr = y_val_arr.astype(np.float64)
+    y_val_arr = y_val_arr.astype(np.float64).reshape(-1, 1)
 
-    y_test_arr = df[[target_col]].iloc[n_val:].values
+    y_test_arr = test_df[target_col_imf].values
     if np.iscomplexobj(y_test_arr):
         y_test_arr = np.real(y_test_arr)
-    y_test_arr = y_test_arr.astype(np.float64)
+    y_test_arr = y_test_arr.astype(np.float64).reshape(-1, 1)
 
     X_train = scaler_x.fit_transform(X_train_arr)
     y_train = scaler_y.fit_transform(y_train_arr)
