@@ -279,10 +279,10 @@ if VMD_CFG.get("enabled", True):
     models = []
     tiempos_imf = []
 
-# Y_pred_total = np.zeros(int(0.2*len(df)-SEQ_LEN-PRED_LEN+1))  # Adjust size as needed (20% of data length)
-# Y_real_total = np.zeros(int(0.2*len(df)-SEQ_LEN-PRED_LEN+1)) 
-Y_real_total = np.zeros(6893) # Figshare
-Y_pred_total = np.zeros(6893) # Figshare
+Y_pred_total = np.zeros(int(0.2*len(df)-SEQ_LEN-PRED_LEN+1))  # Adjust size as needed (20% of data length)
+Y_real_total = np.zeros(int(0.2*len(df)-SEQ_LEN-PRED_LEN+1)) 
+# Y_real_total = np.zeros(6893) # Figshare
+# Y_pred_total = np.zeros(6893) # Figshare
     
 print(f"Initial Y_total shape: {Y_pred_total.shape}")
 print(f"Initial Y_real_total shape: {Y_real_total.shape} \n")
@@ -312,6 +312,9 @@ if VMD_CFG.get("enabled", True):
 
         # --------- Model + optimizer
         model_i = TimesNet_BiLSTM_Parallel(configs=cast(Any, MODEL_CFG)).to(DEVICE)
+        # model_i = TimesNet(configs=cast(Any, MODEL_CFG)).to(DEVICE)
+        # model_i = BiLSTM(configs=cast(Any, MODEL_CFG)).to(DEVICE)
+
         optim_i = torch.optim.Adam(model_i.parameters(), lr=LR, weight_decay=1e-4)
         model_path = os.path.join(CKPT_DIR, f"model_imf_{idx}.pt")
 
@@ -393,6 +396,9 @@ if VMD_CFG.get("enabled", True):
 
         # load model
         model_i = TimesNet_BiLSTM_Parallel(configs=cast(Any, MODEL_CFG)).to(DEVICE)
+        # model_i = TimesNet(configs=cast(Any, MODEL_CFG)).to(DEVICE)
+        # model_i = BiLSTM(configs=cast(Any, MODEL_CFG)).to(DEVICE)
+
         ckpt_path = os.path.join(CKPT_DIR, f"model_imf_{idx}.pt")
         if not os.path.exists(ckpt_path):
             raise FileNotFoundError(f"No checkpoint found: {ckpt_path}")
@@ -445,13 +451,7 @@ if VMD_CFG.get("enabled", True):
     # Plot total prediction (saving optional)
     try:
         visualize(days=1, tt_inv=y_true_inv_ref, tp_inv=y_preds_inv_ref, TARGET=TARGET)
-        plt_history = os.path.join(CFG["training"]["plot_dir"],
-                                CFG["training"]["model_dir"],
-                                "Predictions_STL_VMD_TimesNet_BiLSTM_history.png")
         scatter(y_true_inv_ref, y_preds_inv_ref)
-        plt_scatter = os.path.join(CFG["training"]["plot_dir"],
-                            CFG["training"]["model_dir"],
-                            "Predictions_STL_VMD_TimesNet_BiLSTM_scatter.png")
         print(f"Final plots saved: {plt_history}, {plt_scatter}")
     except Exception as e:
         print(f"Warning: final plots could not be generated: {e}")
@@ -466,11 +466,13 @@ else: # no VMD
     )
 
     # -------- Model + optimizer
-    model = TimesNet_BiLSTM_Parallel(configs=cast(Any, MODEL_CFG)).to(DEVICE)
+    model = BiLSTM(configs=cast(Any, MODEL_CFG)).to(DEVICE)
+    # model = TimesNet(configs=cast(Any, MODEL_CFG)).to(DEVICE)
+    # model = TimesNet_BiLSTM_Parallel(configs=cast(Any, MODEL_CFG)).to(DEVICE)
     optim = torch.optim.Adam(model.parameters(), lr=LR, weight_decay=1e-4)
 
     # Use a filename that doesn't depend on VMD-specific variables when VMD is disabled
-    model_path = os.path.join(CKPT_DIR, "STL_TimesNet_BiLSTM_best_model.pt")
+    model_path = os.path.join(CKPT_DIR, "BiLSTM_best_model.pt")
 
     # Training with AMP + early stopping
     __, __, stats_t, vt, vp = training_amp(
@@ -489,7 +491,7 @@ else: # no VMD
     squared_errors = (y_true_inv - y_pred_inv)**2
     excel_file_path = os.path.join(CFG["training"]["log_dir"], 
                         CFG["training"]["model_dir"],
-                        "Predictions_STL_TimesNet_BiLSTM_valid.xlsx")
+                        "Predictions_BiLSTM_valid.xlsx")
     df_results = pd.DataFrame({'True_Values': y_true_inv,
                                 'Predicted_Values': y_pred_inv,
                                 'Absolute_Error': abs_errors,
@@ -524,7 +526,7 @@ else: # no VMD
     squared_errors = (y_true_inv_test - y_pred_inv_test)**2
     excel_file_path = os.path.join(CFG["training"]["log_dir"], 
                         CFG["training"]["model_dir"],
-                        "Predictions_STL_TimesNet_BiLSTM_test.xlsx")
+                        "Predictions_BiLSTM_test.xlsx")
     df_results = pd.DataFrame({'True_Values': y_true_inv_test,
                                 'Predicted_Values': y_pred_inv_test,
                                 'Absolute_Error': abs_errors,
@@ -541,14 +543,7 @@ else: # no VMD
     # Plot total prediction (saving optional)
     try:
         visualize(days=1, tt_inv=y_true_inv_test, tp_inv=y_pred_inv_test, TARGET=TARGET)
-        plt_history = os.path.join(CFG["training"]["plot_dir"],
-                                CFG["training"]["model_dir"],
-                                "Predictions_STL_TimesNet_BiLSTM_history.png")
         scatter(y_true_inv_test, y_pred_inv_test)
-        plt_scatter = os.path.join(CFG["training"]["plot_dir"],
-                            CFG["training"]["model_dir"],
-                            "Predictions_STL_TimesNet_BiLSTM_scatter.png")
-        print(f"Final plots saved: {plt_history}, {plt_scatter}")
     except Exception as e:
         print(f"Warning: final plots could not be generated: {e}")
 
