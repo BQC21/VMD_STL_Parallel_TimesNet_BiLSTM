@@ -58,24 +58,6 @@ Building upon the model described in [3], I applied data-processing steps from t
 - Lookback (sequence_length): 48  
 - Prediction horizon (prediction_length): 1 (i.e., 15 minutes)
 
-### Parameter configuration  
-| Parameter         | Description                             | Value      |
-|-------------------|-----------------------------------------|------------|
-| Period            | Possible periodicity length             | 9          |
-| alpha             | Bandwidth of modal functions            | 0.1        |
-| k                 | Number of modes (VMD)                   | 3          |
-| λ (lambda)        | Lagrange multiplier                     | 85         |
-| num_kernels       | Number of kernels in TimesNet CNN block | 7          |
-| num_times_blocks  | Number of TimesNet blocks                | 2          |
-| top_k             | Number of significant periods            | 2          |
-| dropout           | Fraction of neurons dropped             | 0.1188     |
-| hidden_size       | Neurons per BiLSTM layer                | 32         |
-| layers            | Number of BiLSTM layers                  | 3          |
-| bidirectional     | Enable bidirectional flow                | true       |
-| epochs            | Training iterations                      | 30         |
-| batch_size        | Samples per batch                        | 64         |
-| learning_rate     | Learning rate                            | 0.001      |
-
 Parameters can be modified in `/configs/parameters.yaml` for new experiments.
 
 ### Outputs
@@ -85,29 +67,7 @@ The proposed model improved the metrics over [2], considering MAE, RMSE and R²:
 
 | Model                                   | MAE     | RMSE    | R²     | dataset |
 |----------------------------------------|---------|---------|--------|--------|
-| BiLSTM                                 |   |  |  | DKASC |
-| TimesNet                               |   |  |  | DKASC |
-| PA [TimesNet-BiLSTM]                   | 9.3171  | 18.6826 | 0.9534 | DKASC |
-| STL – BiLSTM                                 |   |  |  | DKASC |
-| STL – TimesNet                               |   |  |  | DKASC |
-| STL – PA [TimesNet-BiLSTM]             | 6.5036  | 10.8280 | 0.9864 | DKASC |
-| VMD – BiLSTM                                 |   |  |  | DKASC |
-| VMD – TimesNet                               |   |  |  | DKASC |
-| VMD-PA [TimesNet-BiLSTM]               | 4.1885  | 6.3676  | 0.9944 | DKASC |
-| STL – VMD – BiLSTM                                 |   |  |  | DKASC |
-| STL – VMD – TimesNet                               |   |  |  | DKASC |
 | STL – VMD – PA [TimesNet-BiLSTM] (purpose)      | 3.6986  | 6.8266  | 0.9936 | DKASC |
-| BiLSTM                                 |   |  |  | Solar station site 8 |
-| TimesNet                               |   |  |  | Solar station site 8 |
-| PA [TimesNet-BiLSTM]                       | 3.0263  | 4.3729  | 0.6204 | Solar station site 8 |
-| STL – BiLSTM                                 |   |  |  | Solar station site 8 |
-| STL – TimesNet                               |   |  |  | Solar station site 8 |
-| STL – PA [TimesNet-BiLSTM]                 | 0.4336  | 0.5817  | 0.9933 | Solar station site 8 |
-| VMD – BiLSTM                                 |   |  |  | Solar station site 8 |
-| VMD – TimesNet                               |   |  |  | Solar station site 8 |
-| VMD-PA [TimesNet-BiLSTM]                   | 2.9789  | 4.3131  | 0.6255 | Solar station site 8 |
-| STL – VMD – BiLSTM                                 |   |  |  | Solar station site 8 |
-| STL – VMD – TimesNet                               |   |  |  | Solar station site 8 |
 | STL – VMD – PA [TimesNet-BiLSTM] (purpose) | 0.3234  | 0.4349  | 0.9962 | Solar station site 8 |
 
 - History plot of STL_VMD_PA[TimesNet_BiLSTM] on testing set for DKASC (3/6/2019)
