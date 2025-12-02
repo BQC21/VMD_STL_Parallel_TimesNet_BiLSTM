@@ -1,14 +1,20 @@
 # NumPy / Pandas / Matplotlib
-import matplotlib.pyplot as plt
+import seaborn as sns
 import numpy as np
 import pandas as pd
 
-################
+# Build log arrays
+from build_log_arrays import true_values_dksac, predicted_values_dksac, true_values_figshare, predicted_values_figshare
 
-# boxplot for DKSAC
-boxplot_dksac = plt.boxplot(DKASC["MAE"], DKASC["RMSE"], DKASC["R2"])
+#################### DKASC BOXPLOT ############################################
+
+# Build log arrays
+from build_log_arrays import true_values_dksac, predicted_values_dksac, true_values_figshare, predicted_values_figshare
+
+# Boxplot
+sns.boxplot(data=true_values_dksac, predicted_values_dksac)
 plt.show()
 
-# boxplot for figshare
-boxplot_figshare = plt.boxplot(figshare["MAE"], figshare["RMSE"], figshare["R2"])
-plt.show()
+#################### Figshare BOXPLOT ############################################
+
+# Boxplot

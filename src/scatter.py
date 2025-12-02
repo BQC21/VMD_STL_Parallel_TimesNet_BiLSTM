@@ -10,6 +10,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
+# Build log arrays
+from build_log_arrays import true_values_dksac, predicted_values_dksac, true_values_figshare, predicted_values_figshare
+
 # There are 12 subplots, here only one dataset is used.
 # You probably want to plot different predictions in each axis.
 # For now, just plot the same in each, but plot onto the axis, not plt.figure.
@@ -26,56 +29,6 @@ def scatter_on_ax(ax: Axes, tt_inv: Any, tp_inv: Any):
     ax.plot(xs, xs, linewidth=1)
 
 #################### DKASC SCATTER ############################################
-read_logs_dksac_BiLSTM = pd.read_excel("logs/Yulara/Predictions_BiLSTM_test.xlsx")
-read_logs_dksac_TimesNet = pd.read_excel("logs/Yulara/Predictions_TimesNet_test.xlsx")
-read_logs_dksac_TimesNet_BiLSTM = pd.read_excel("logs/Yulara/Predictions_TimesNet_BiLSTM_test.xlsx")
-read_logs_dksac_STL_BiLSTM = pd.read_excel("logs/Yulara/Predictions_STL_BiLSTM_test.xlsx")
-read_logs_dksac_STL_TimesNet = pd.read_excel("logs/Yulara/Predictions_STL_TimesNet_test.xlsx")
-read_logs_dksac_STL_TimesNet_BiLSTM = pd.read_excel("logs/Yulara/Predictions_STL_TimesNet_BiLSTM_test.xlsx")
-read_logs_dksac_VMD_BiLSTM = pd.read_excel("logs/Yulara/Predictions_VMD_BiLSTM_test.xlsx")
-read_logs_dksac_VMD_TimesNet = pd.read_excel("logs/Yulara/Predictions_VMD_TimesNet_test.xlsx")
-read_logs_dksac_VMD_TimesNet_BiLSTM = pd.read_excel("logs/Yulara/Predictions_VMD_TimesNet_BiLSTM_test.xlsx")
-read_logs_dksac_STL_VMD_BiLSTM = pd.read_excel("logs/Yulara/Predictions_STL_VMD_BiLSTM_test.xlsx")
-read_logs_dksac_STL_VMD_TimesNet = pd.read_excel("logs/Yulara/Predictions_STL_VMD_TimesNet_test.xlsx")
-read_logs_dksac_STL_VMD_TimesNet_BiLSTM = pd.read_excel("logs/Yulara/Predictions_STL_VMD_TimesNet_BiLSTM_test.xlsx")
-
-# True values
-true_values_BiLSTM = read_logs_dksac_BiLSTM["True_Values"].values
-true_values_TimesNet = read_logs_dksac_TimesNet["True_Values"].values
-true_values_TimesNet_BiLSTM = read_logs_dksac_TimesNet_BiLSTM["True_Values"].values
-true_values_STL_BiLSTM = read_logs_dksac_STL_BiLSTM["True_Values"].values
-true_values_STL_TimesNet = read_logs_dksac_STL_TimesNet["True_Values"].values
-true_values_STL_TimesNet_BiLSTM = read_logs_dksac_STL_TimesNet_BiLSTM["True_Values"].values
-true_values_VMD_BiLSTM = read_logs_dksac_VMD_BiLSTM["True_Values"].values
-true_values_VMD_TimesNet = read_logs_dksac_VMD_TimesNet["True_Values"].values
-true_values_VMD_TimesNet_BiLSTM = read_logs_dksac_VMD_TimesNet_BiLSTM["True_Values"].values
-true_values_STL_VMD_BiLSTM = read_logs_dksac_STL_VMD_BiLSTM["True_Values"].values
-true_values_STL_VMD_TimesNet = read_logs_dksac_STL_VMD_TimesNet["True_Values"].values
-true_values_STL_VMD_TimesNet_BiLSTM = read_logs_dksac_STL_VMD_TimesNet_BiLSTM["True_Values"].values
-
-true_values = [true_values_BiLSTM, true_values_TimesNet, true_values_TimesNet_BiLSTM, 
-true_values_STL_BiLSTM, true_values_STL_TimesNet, true_values_STL_TimesNet_BiLSTM, 
-true_values_VMD_BiLSTM, true_values_VMD_TimesNet, true_values_VMD_TimesNet_BiLSTM, 
-true_values_STL_VMD_BiLSTM, true_values_STL_VMD_TimesNet, true_values_STL_VMD_TimesNet_BiLSTM]
-
-# Predicted values
-predicted_values_BiLSTM = read_logs_dksac_BiLSTM["Predicted_Values"].values
-predicted_values_TimesNet = read_logs_dksac_TimesNet["Predicted_Values"].values
-predicted_values_TimesNet_BiLSTM = read_logs_dksac_TimesNet_BiLSTM["Predicted_Values"].values
-predicted_values_STL_BiLSTM = read_logs_dksac_STL_BiLSTM["Predicted_Values"].values
-predicted_values_STL_TimesNet = read_logs_dksac_STL_TimesNet["Predicted_Values"].values
-predicted_values_STL_TimesNet_BiLSTM = read_logs_dksac_STL_TimesNet_BiLSTM["Predicted_Values"].values
-predicted_values_VMD_BiLSTM = read_logs_dksac_VMD_BiLSTM["Predicted_Values"].values
-predicted_values_VMD_TimesNet = read_logs_dksac_VMD_TimesNet["Predicted_Values"].values
-predicted_values_VMD_TimesNet_BiLSTM = read_logs_dksac_VMD_TimesNet_BiLSTM["Predicted_Values"].values
-predicted_values_STL_VMD_BiLSTM = read_logs_dksac_STL_VMD_BiLSTM["Predicted_Values"].values
-predicted_values_STL_VMD_TimesNet = read_logs_dksac_STL_VMD_TimesNet["Predicted_Values"].values
-predicted_values_STL_VMD_TimesNet_BiLSTM = read_logs_dksac_STL_VMD_TimesNet_BiLSTM["Predicted_Values"].values
-
-predicted_values = [predicted_values_BiLSTM, predicted_values_TimesNet, predicted_values_TimesNet_BiLSTM, 
-predicted_values_STL_BiLSTM, predicted_values_STL_TimesNet, predicted_values_STL_TimesNet_BiLSTM, 
-predicted_values_VMD_BiLSTM, predicted_values_VMD_TimesNet, predicted_values_VMD_TimesNet_BiLSTM, 
-predicted_values_STL_VMD_BiLSTM, predicted_values_STL_VMD_TimesNet, predicted_values_STL_VMD_TimesNet_BiLSTM]
 
 fig_dksac, axes_dksac = plt.subplots(4, 3, figsize=(15, 10))
 fig_dksac.suptitle('Scatter plot: y_true vs y_pred for DKSAC', fontsize=16)
@@ -88,64 +41,14 @@ else:
     axes_dksac = [axes_dksac]
 
 # Plot each model’s true/pred pair on its own axis
-for ax, tt_inv, tp_inv in zip(axes_dksac, true_values, predicted_values):
+for ax, tt_inv, tp_inv in zip(axes_dksac, true_values_dksac, predicted_values_dksac):
     scatter_on_ax(ax, tt_inv, tp_inv)
 
 plt.tight_layout()
 fig_dksac.savefig('scatter_dksac.png')
-plt.show()
 
-# #################### Figshare SCATTER ############################################
-read_logs_figshare_BiLSTM = pd.read_excel("logs/Figshare/Predictions_BiLSTM_test.xlsx")
-read_logs_figshare_TimesNet = pd.read_excel("logs/Figshare/Predictions_TimesNet_test.xlsx")
-read_logs_figshare_TimesNet_BiLSTM = pd.read_excel("logs/Figshare/Predictions_TimesNet_BiLSTM_test.xlsx")
-read_logs_figshare_STL_BiLSTM = pd.read_excel("logs/Figshare/Predictions_STL_BiLSTM_test.xlsx")
-read_logs_figshare_STL_TimesNet = pd.read_excel("logs/Figshare/Predictions_STL_TimesNet_test.xlsx")
-read_logs_figshare_STL_TimesNet_BiLSTM = pd.read_excel("logs/Figshare/Predictions_STL_TimesNet_BiLSTM_test.xlsx")
-read_logs_figshare_VMD_BiLSTM = pd.read_excel("logs/Figshare/Predictions_VMD_BiLSTM_test.xlsx")
-read_logs_figshare_VMD_TimesNet = pd.read_excel("logs/Figshare/Predictions_VMD_TimesNet_test.xlsx")
-read_logs_figshare_VMD_TimesNet_BiLSTM = pd.read_excel("logs/Figshare/Predictions_VMD_TimesNet_BiLSTM_test.xlsx")
-read_logs_figshare_STL_VMD_BiLSTM = pd.read_excel("logs/Figshare/Predictions_STL_VMD_BiLSTM_test.xlsx")
-read_logs_figshare_STL_VMD_TimesNet = pd.read_excel("logs/Figshare/Predictions_STL_VMD_TimesNet_test.xlsx")
-read_logs_figshare_STL_VMD_TimesNet_BiLSTM = pd.read_excel("logs/Figshare/Predictions_STL_VMD_TimesNet_BiLSTM_test.xlsx")
 
-# True values
-true_values_BiLSTM = read_logs_figshare_BiLSTM["True_Values"].values
-true_values_TimesNet = read_logs_figshare_TimesNet["True_Values"].values
-true_values_TimesNet_BiLSTM = read_logs_figshare_TimesNet_BiLSTM["True_Values"].values
-true_values_STL_BiLSTM = read_logs_figshare_STL_BiLSTM["True_Values"].values
-true_values_STL_TimesNet = read_logs_figshare_STL_TimesNet["True_Values"].values
-true_values_STL_TimesNet_BiLSTM = read_logs_figshare_STL_TimesNet_BiLSTM["True_Values"].values
-true_values_VMD_BiLSTM = read_logs_figshare_VMD_BiLSTM["True_Values"].values
-true_values_VMD_TimesNet = read_logs_figshare_VMD_TimesNet["True_Values"].values
-true_values_VMD_TimesNet_BiLSTM = read_logs_figshare_VMD_TimesNet_BiLSTM["True_Values"].values
-true_values_STL_VMD_BiLSTM = read_logs_figshare_STL_VMD_BiLSTM["True_Values"].values
-true_values_STL_VMD_TimesNet = read_logs_figshare_STL_VMD_TimesNet["True_Values"].values
-true_values_STL_VMD_TimesNet_BiLSTM = read_logs_figshare_STL_VMD_TimesNet_BiLSTM["True_Values"].values
-
-true_values = [true_values_BiLSTM, true_values_TimesNet, true_values_TimesNet_BiLSTM, 
-true_values_STL_BiLSTM, true_values_STL_TimesNet, true_values_STL_TimesNet_BiLSTM, 
-true_values_VMD_BiLSTM, true_values_VMD_TimesNet, true_values_VMD_TimesNet_BiLSTM, 
-true_values_STL_VMD_BiLSTM, true_values_STL_VMD_TimesNet, true_values_STL_VMD_TimesNet_BiLSTM]
-
-# Predicted values
-predicted_values_BiLSTM = read_logs_figshare_BiLSTM["Predicted_Values"].values
-predicted_values_TimesNet = read_logs_figshare_TimesNet["Predicted_Values"].values
-predicted_values_TimesNet_BiLSTM = read_logs_figshare_TimesNet_BiLSTM["Predicted_Values"].values
-predicted_values_STL_BiLSTM = read_logs_figshare_STL_BiLSTM["Predicted_Values"].values
-predicted_values_STL_TimesNet = read_logs_figshare_STL_TimesNet["Predicted_Values"].values
-predicted_values_STL_TimesNet_BiLSTM = read_logs_figshare_STL_TimesNet_BiLSTM["Predicted_Values"].values
-predicted_values_VMD_BiLSTM = read_logs_figshare_VMD_BiLSTM["Predicted_Values"].values
-predicted_values_VMD_TimesNet = read_logs_figshare_VMD_TimesNet["Predicted_Values"].values
-predicted_values_VMD_TimesNet_BiLSTM = read_logs_figshare_VMD_TimesNet_BiLSTM["Predicted_Values"].values
-predicted_values_STL_VMD_BiLSTM = read_logs_figshare_STL_VMD_BiLSTM["Predicted_Values"].values
-predicted_values_STL_VMD_TimesNet = read_logs_figshare_STL_VMD_TimesNet["Predicted_Values"].values
-predicted_values_STL_VMD_TimesNet_BiLSTM = read_logs_figshare_STL_VMD_TimesNet_BiLSTM["Predicted_Values"].values
-
-predicted_values = [predicted_values_BiLSTM, predicted_values_TimesNet, predicted_values_TimesNet_BiLSTM, 
-predicted_values_STL_BiLSTM, predicted_values_STL_TimesNet, predicted_values_STL_TimesNet_BiLSTM, 
-predicted_values_VMD_BiLSTM, predicted_values_VMD_TimesNet, predicted_values_VMD_TimesNet_BiLSTM, 
-predicted_values_STL_VMD_BiLSTM, predicted_values_STL_VMD_TimesNet, predicted_values_STL_VMD_TimesNet_BiLSTM]
+#################### Figshare SCATTER ############################################
 
 fig_figshare, axes_figshare = plt.subplots(4, 3, figsize=(15, 10))
 fig_figshare.suptitle('Scatter plot: y_true vs y_pred for Figshare', fontsize=16)
@@ -157,7 +60,7 @@ if isinstance(axes_figshare, np.ndarray):
 else:
     axes_figshare = [axes_figshare]
 
-for ax, tt_inv, tp_inv in zip(axes_figshare, true_values, predicted_values):
+for ax, tt_inv, tp_inv in zip(axes_figshare, true_values_figshare, predicted_values_figshare):
     scatter_on_ax(ax, tt_inv, tp_inv)
 
 plt.tight_layout()
