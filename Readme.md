@@ -60,7 +60,7 @@ Building upon the model described in [3], I applied data-processing steps from t
 
 Parameters can be modified in `/configs/parameters.yaml` for new experiments.
 
-### Outputs
+<!-- ### Outputs
 
 The proposed model improved the metrics over [2], considering MAE, RMSE and R²:
 
@@ -73,8 +73,7 @@ The proposed model improved the metrics over [2], considering MAE, RMSE and R²:
 - History plot of STL_VMD_PA[TimesNet_BiLSTM] on testing set for DKASC (3/6/2019)
 ![History plot of STL_VMD_PA[TimesNet_BiLSTM] on testing set for DKASC](/outputs/Yulara/plots/STL_VMD_TimesNet_BiLSTM/STL_VMD_TimesNet_BiLSTM_history.png)
 - History plot of STL_VMD_PA[TimesNet_BiLSTM] on testing set for Solar station site 8 (3/6/2019)
-![History plot of STL_VMD_PA[TimesNet_BiLSTM] on testing set for Solar station site 8](/outputs/Figshare/plots/STL_VMD_TimesNet_BiLSTM/STL_VMD_TimesNet_BiLSTM_history.png)
-
+![History plot of STL_VMD_PA[TimesNet_BiLSTM] on testing set for Solar station site 8](/outputs/Figshare/plots/STL_VMD_TimesNet_BiLSTM/STL_VMD_TimesNet_BiLSTM_history.png) -->
 
 ## Run
 
