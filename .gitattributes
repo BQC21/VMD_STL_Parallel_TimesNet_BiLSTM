@@ -1,3 +1,0 @@
-data/raw/*.csv filter=lfs diff=lfs merge=lfs -text
-data/raw/dataset_Laundry.csv filter=lfs diff=lfs merge=lfs -text
-data/Yulara/dataset_Laundry.csv filter=lfs diff=lfs merge=lfs -text
