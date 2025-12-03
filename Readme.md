@@ -13,7 +13,7 @@
 ### scatter plot
 
 - For DKASC:
-![Scatter plot for DKASC](/figures/scatter_dkasc.png)
+![Scatter plot for DKASC](/figures/scatter_dksac.png)
 
 - For Figshare:
 ![Scatter plot for Figshare](/figures/scatter_figshare.png)
