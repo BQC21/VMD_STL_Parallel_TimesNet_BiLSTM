@@ -19,7 +19,7 @@ data:
 
 # STL decomposition parameters
 stl:
-  enabled: true
+  enabled: false
   period: 9 
 
 # VMD decomposition parameters
@@ -31,13 +31,13 @@ vmd:
   init: 1
   tol: 1e-7
   lambda_param: 75  # Lagrange multiplier for reconstruction constraint
-  enabled: true
+  enabled: false
 
 # Model configuration
 model:
-  name: "TimesNet_BiLSTM"
+  name: "BiLSTM"
   # input_features: 11 # switch to 8 if STL are disabled (DKASC)
-  input_features: 6 # switch to 3 if STL are disabled (figshare)
+  input_features: 3 # switch to 3 if STL are disabled (figshare)
   output_features: 1
 
   timesnet:
@@ -61,25 +61,19 @@ training:
 
   checkpoint_dir: "outputs/Figshare/models"
   # checkpoint_dir: "outputs/Yulara/models"
-
-  # model_dir: "BiLSTM"
-  # model_dir: "TimesNet"
-  # model_dir: "TimesNet_BiLSTM"
-  # model_dir: "STL_BiLSTM"
-  # model_dir: "STL_TimesNet"
-  # model_dir: "STL_TimesNet_BiLSTM"
-  # model_dir: "VMD_BiLSTM"
-  # model_dir: "VMD_TimesNet"
-  # model_dir: "VMD_TimesNet_BiLSTM"
-  # model_dir: "STL_VMD_BiLSTM"
-  # model_dir: "STL_VMD_TimesNet"
-  model_dir: "STL_VMD_TimesNet_BiLSTM"
+  
+  model_dir: "BiLSTM"
   
   log_dir: "outputs/Figshare/logs"
   # log_dir: "outputs/Yulara/logs"
 
   plot_dir: "outputs/Figshare/plots"
   # plot_dir: "outputs/Yulara/plots"
+
+  name_file_valid: "Predictions_BiLSTM_valid.xlsx"
+  name_file_test: "Predictions_BiLSTM_test.xlsx"
+
+  model_name_file: "BiLSTM_best_model.pt"
 
   save_best_only: true
   verbose: true

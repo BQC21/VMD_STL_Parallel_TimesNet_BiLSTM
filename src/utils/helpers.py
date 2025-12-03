@@ -2,17 +2,49 @@
 ##################################
 #### Packages ###################
 ##################################
-
-import warnings
+import os, sys, warnings, yaml, random
 warnings.filterwarnings("ignore")
 
+# Make imports work whether this file is run as a script or as a module.
+CURRENT_DIR = os.path.dirname(__file__)
+SRC_DIR = os.path.abspath(os.path.join(CURRENT_DIR, ".."))        # .../src
+REPO_ROOT = os.path.abspath(os.path.join(CURRENT_DIR, "..", ".."))  # repository root
+for _p in (SRC_DIR, REPO_ROOT):
+    if _p not in sys.path:
+        sys.path.insert(0, _p)
+
+# NumPy / Pandas
 import numpy as np
+import pandas as pd
+
+# Torch
 import torch
+import torch.nn as nn
 from torch.utils.data import Dataset, DataLoader
+
+# sklearn
 from sklearn.preprocessing import StandardScaler, MinMaxScaler
 from sklearn.metrics import mean_squared_error
+
+# Utils 
+from pipeline.metrics import compute_metrics
+from visualization.plots import visualize, scatter
+
+# DL model
+from models.TimesNet_BiLSTM import TimesNet_BiLSTM_Parallel, BiLSTM, TimesNet
+
+# STL
+from statsmodels.tsa.seasonal import STL
+
+# VMD
+from features.vmd import VMD
+
+# Computational time
 from time import perf_counter
-from tqdm.auto import tqdm, trange
+from types import SimpleNamespace
+from typing import Any, cast
+from tqdm import tqdm
+
 
 ##################################
 
@@ -32,6 +64,19 @@ def make_sequences(X, y, seq_len=48, pred_len=1):
         Xs.append(X[i:i+seq_len])
         ys.append(y[i+seq_len+pred_len-1])
     return np.array(Xs), np.array(ys)
+
+# prediction
+def predict_loader(model, dl, device):
+    model.eval()
+    preds, trues = [], []
+    with torch.no_grad():
+        for xb, yb in dl:
+            xb = xb.to(device)
+            with torch.autocast(device_type=device.type, dtype=torch.float16):
+                out = model(xb)
+            preds.append(out.detach().cpu().numpy())
+            trues.append(yb.detach().cpu().numpy())
+    return np.concatenate(preds, axis=0), np.concatenate(trues, axis=0)
 
 # Processing
 def build_loaders(df, seq_len=48, pred_len=1, batch=64, target_col="Active_Power"):
@@ -195,6 +240,8 @@ def training_amp(model, device, loss_fn, scaler, optim,
     epoch_times, val_times = [], []
     t0_total = perf_counter()
 
+    from tqdm import trange  # fix: import trange from tqdm
+
     for epoch in trange(epochs, desc="Training (epochs)", dynamic_ncols=True):
         model.train()
         batch_losses = []
@@ -268,3 +315,179 @@ def training_amp(model, device, loss_fn, scaler, optim,
         tqdm.write(f"[TIMES] total={total_time:.2f}s | epoch_avg={stats_tiempo['epoch_avg_s']:.2f}s | val_avg={stats_tiempo['val_avg_s']:.2f}s")
 
     return loss_train, loss_valid, stats_tiempo, true_val, pred_val
+
+#####################################
+# train for each IMF
+#####################################
+def train_for_each_imf(df, model, u_all, SIGNALS, 
+                    SIGNAL_NAMES, DEVICE, CKPT_DIR, 
+                    SEQ_LEN, PRED_LEN, 
+                    BATCH_SIZE, TARGET, 
+                    K, Y_pred_total, Y_real_total,
+                    LR, EPOCHS, PATIENCE_ES, loss_fn, scaler):
+    models = []
+
+    for idx in range(K):
+        imf_col = f"mode{idx}"
+
+        # build dataframe for this IMF
+        modes_df = pd.DataFrame({
+            f"{SIGNAL_NAMES[sig_idx]}_{imf_col}": u_all[sig_idx][idx, :]
+            for sig_idx in range(len(SIGNALS))
+        })
+
+        tqdm.write(f"\n=== Training {imf_col} ===")
+
+        # Load sequences
+        train_dl, val_dl, test_dl, y_scaler, __ = build_loaders_for_imf(
+            df=modes_df, imf_col=imf_col,
+            seq_len=SEQ_LEN, pred_len=PRED_LEN, 
+            batch=BATCH_SIZE, target_col=TARGET
+        )
+
+        # --------- Model + optimizer
+        model_i = model
+        optim_i = torch.optim.Adam(model_i.parameters(), lr=LR, weight_decay=1e-4)
+        model_path = os.path.join(CKPT_DIR, f"model_imf_{idx}.pt")
+
+        # Training with AMP + early stopping
+        __, __, stats_t, vt, vp = training_amp(
+            model=model_i, device=str(DEVICE), 
+            loss_fn=loss_fn, scaler=scaler,
+            optim=optim_i, train_dl=train_dl, val_dl=val_dl,
+            MODEL_PATH=model_path, df = df, 
+            seq_len=SEQ_LEN, pred_len=PRED_LEN,
+            epochs=EPOCHS, patience=PATIENCE_ES, verbose=True
+        )
+
+        models.append(model_i)
+
+        # Ensure vp and vt are numpy arrays with shape (n_samples, 1) for inverse_transform
+        vp_arr = np.asarray(vp)
+        vt_arr = np.asarray(vt)
+        if vp_arr.ndim == 1:
+            vp_arr = vp_arr.reshape(-1, 1)
+        else:
+            vp_arr = vp_arr.reshape(vp_arr.shape[0], -1)
+        if vt_arr.ndim == 1:
+            vt_arr = vt_arr.reshape(-1, 1)
+        else:
+            vt_arr = vt_arr.reshape(vt_arr.shape[0], -1)
+    
+        y_pred_inv = y_scaler.inverse_transform(vp_arr).ravel()
+        y_true_inv = y_scaler.inverse_transform(vt_arr).ravel()
+        print(f"shapes of true and predicted values: {y_true_inv.shape}, {y_pred_inv.shape}")
+
+        Y_pred_total += y_pred_inv.flatten()
+        Y_real_total += y_true_inv.flatten()
+        # end for idx in range(K)
+        print(f"Reconstructed Y_pred_total shape after {imf_col}: {Y_pred_total.shape}")
+        print(f"Reconstructed Y_real_total shape after {imf_col}: {Y_real_total.shape}")
+
+        result = (models, Y_real_total, Y_pred_total, stats_t)
+
+    return result
+
+def reconstruct_model(SIGNALS, SIGNAL_NAMES, SEQ_LEN, 
+                    PRED_LEN, BATCH_SIZE, TARGET, 
+                    DEVICE, CKPT_DIR, u_all, K, model):
+    y_preds_inv_ref = None
+    y_true_inv_ref = None
+    
+    for idx in range(K):
+        imf_col = f"mode{idx}"
+
+        # build dataframe for this IMF
+        modes_df = pd.DataFrame({
+            f"{SIGNAL_NAMES[sig_idx]}_{imf_col}": u_all[sig_idx][idx, :]
+            for sig_idx in range(len(SIGNALS))
+        })
+
+        _, _, test_dl, y_scaler, _ = build_loaders_for_imf(
+            df=modes_df, imf_col=imf_col,
+            seq_len=SEQ_LEN, pred_len=PRED_LEN, 
+            batch=BATCH_SIZE, target_col=TARGET
+        )
+
+        # load model
+        model_i = model
+        ckpt_path = os.path.join(CKPT_DIR, f"model_imf_{idx}.pt")
+        if not os.path.exists(ckpt_path):
+            raise FileNotFoundError(f"No checkpoint found: {ckpt_path}")
+        model_i.load_state_dict(torch.load(ckpt_path, map_location=DEVICE))
+        model_i.eval()
+
+        # prediction
+        y_pred, y_true = predict_loader(model_i, test_dl, DEVICE)
+        y_pred_inv = y_scaler.inverse_transform(y_pred.reshape(-1, 1)).ravel()
+        y_true_inv = y_scaler.inverse_transform(y_true.reshape(-1, 1)).ravel()
+
+        # Reconstruct sum
+        if y_preds_inv_ref is None:
+            y_preds_inv_ref = y_pred_inv.copy()
+            y_true_inv_ref = y_true_inv.copy()
+        else:
+            n = min(len(y_preds_inv_ref), len(y_pred_inv))
+            y_preds_inv_ref[:n] += y_pred_inv[:n]
+            y_true_inv_ref[:n] += y_true_inv[:n]
+
+    # Check for None before accessing .shape to avoid AttributeError
+    if y_true_inv_ref is None or y_preds_inv_ref is None:
+        print("Warning: y_true_inv_ref or y_preds_inv_ref is None. Cannot print shapes.")
+    else:
+        print(f"shapes of true and predicted values: {y_true_inv_ref.shape}, {y_preds_inv_ref.shape}")
+
+    return y_true_inv_ref, y_preds_inv_ref
+
+#####################################
+# train whole model
+#####################################
+def train_whole_model(df, model, DEVICE, CKPT_DIR, 
+                    SEQ_LEN, PRED_LEN, model_name_file,
+                    BATCH_SIZE, TARGET, 
+                    LR, PATIENCE_ES, loss_fn, scaler):
+    # Load sequences
+    train_dl, val_dl, test_dl, y_scaler, __ = build_loaders(
+        df=df, seq_len=SEQ_LEN, pred_len=PRED_LEN, 
+        batch=BATCH_SIZE, target_col=TARGET
+    )
+
+    # -------- Optimizer
+    optim = torch.optim.Adam(model.parameters(), lr=LR, weight_decay=1e-4)
+
+    # Use a filename that doesn't depend on VMD-specific variables when VMD is disabled
+    model_path = os.path.join(CKPT_DIR, model_name_file)
+
+    # Training with AMP + early stopping
+    __, __, stats_t, vt, vp = training_amp(
+        model=model, device=str(DEVICE), 
+        loss_fn=loss_fn, scaler=scaler,
+        optim=optim, train_dl=train_dl, val_dl=val_dl,
+        MODEL_PATH=model_path, df = df, 
+        seq_len=SEQ_LEN, pred_len=PRED_LEN,
+        patience=PATIENCE_ES, verbose=True
+    )
+    y_pred_inv = y_scaler.inverse_transform(vp.reshape(-1, 1)).ravel()
+    y_true_inv = y_scaler.inverse_transform(vt.reshape(-1, 1)).ravel()
+    print(f"shapes of true and predicted values: {y_true_inv.shape}, {y_pred_inv.shape}")
+
+    return y_true_inv, y_pred_inv, model_path, test_dl, y_scaler
+
+#####################################
+# plot metrics
+#####################################
+def print_metrics(Y_real_total, Y_pred_total, excel_file_path):
+    abs_errors = np.abs(Y_real_total - Y_pred_total)
+    squared_errors = (Y_real_total - Y_pred_total)**2
+    df_results = pd.DataFrame({'True_Values': Y_real_total,
+                                'Predicted_Values': Y_pred_total,
+                                'Absolute_Error': abs_errors,
+                                'Squared_Error': squared_errors})
+    df_results.to_excel(excel_file_path, index=False)
+
+    # Compute metrics (RMSE) after all IMFs
+    R2, MAE, RMSE = compute_metrics(Y_real_total, Y_pred_total)
+    tqdm.write(f"\n=== VMD Reconstruction Results ===")
+    tqdm.write(f"RMSE: {RMSE:.4f}")
+    tqdm.write(f"MAE:  {MAE:.4f}")
+    tqdm.write(f"R2:   {R2:.4f}")    
