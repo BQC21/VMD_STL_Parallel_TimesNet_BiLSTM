@@ -27,27 +27,19 @@ The proposed model improved the metrics over [2], considering MAE, RMSE and R²:
 
 | Model                                   | MAE     | RMSE    | R²     | dataset |
 |----------------------------------------|---------|---------|--------|--------|
-| BiLSTM                                 | 10.2397  | 19.1686 | 0.9509 | DKASC |
-| TimesNet                               | 9.3082  | 18.6095 | 0.9538 | DKASC |
-| PA [TimesNet-BiLSTM]                   | 9.4747  | 18.6478 | 0.9536 | DKASC |
-| STL – BiLSTM                                 | 5.9110  | 11.8351 | 0.9813 | DKASC |
-| STL – TimesNet                               | 5.5962  | 9.3876 | 0.9886 | DKASC |
-| STL – PA [TimesNet-BiLSTM]             | 5.5633  | 9.2110 | 0.9887 | DKASC |
-| VMD – BiLSTM                                 | 3.5010  | 5.6328 | 0.9956 | DKASC |
-| VMD – TimesNet                               | 4.6414  | 6.8130 | 0.9936 | DKASC |
-| VMD-PA [TimesNet-BiLSTM]               | 4.0848  | 6.3868  | 0.9944 | DKASC |
-| STL – VMD – BiLSTM                                 | 3.3669  | 6.1103 | 0.9949 | DKASC |
-| STL – VMD – TimesNet                               | 5.1346  | 7.3156 | 0.9927 | DKASC |
-| STL – VMD – PA [TimesNet-BiLSTM]      | 3.6979  | 6.4245  | 0.9943 | DKASC |
-| BiLSTM                                 | 3.1638  | 4.4448 | 0.6079 | Solar station site 8 |
-| TimesNet                               | 3.0838  | 4.3843 | 0.6184 | Solar station site 8 |
-| PA [TimesNet-BiLSTM]                       | 3.0284  | 4,2961 | 0.6336 | Solar station site 8 |
-| STL – BiLSTM                                 | 0.5038  | 0.6948 | 0.9904 | Solar station site 8 |
-| STL – TimesNet                               | 0.4232  | 0.5554 | 0.9939 | Solar station site 8 |
-| STL – PA [TimesNet-BiLSTM]                 | 0.4110  | 0.5472 | 0.9941 | Solar station site 8 |
-| VMD – BiLSTM                                 | 3.0713  | 4.5132 | 0.5900 | Solar station site 8 |
-| VMD – TimesNet                               | 3.0395  | 4.3344 | 0.6218 | Solar station site 8 |
-| VMD-PA [TimesNet-BiLSTM]                   | 2.9531  | 4.2022 | 0.6445 | Solar station site 8 |
-| STL – VMD – BiLSTM                                 | 0.2955  | 0.3973 | 0.9968 | Solar station site 8 |
-| STL – VMD – TimesNet                               | 0.3400  | 0.4451 | 0.9960 | Solar station site 8 |
-| STL – VMD – PA [TimesNet-BiLSTM] (purpose) | 0.3154  | 0.4174 | 0.9965 | Solar station site 8 |
+| PA [TimesNet-BiLSTM]                   | 10.1088  | 18.9476 | 0.9521 | DKASC |
+| STL – PA [TimesNet-BiLSTM]             | 5.5533 | 9.3104 | 0.9884 | DKASC |
+| VMD – BiLSTM                                 | 4.4302  | 7.5547 | 0.9924 | DKASC |
+| VMD – TimesNet                               | 5.5409  | 10.0341 | 0.9866 | DKASC |
+| VMD-PA [TimesNet-BiLSTM]               | 5.7206  | 9.0523  | 0.9891 | DKASC |
+| STL – VMD – BiLSTM                                 | 4.2659  | 7.4831 | 0.9925 | DKASC |
+| STL – VMD – TimesNet                               | 3.9706  | 6.4585 | 0.9944 | DKASC |
+| STL – VMD – PA [TimesNet-BiLSTM]      | 3.9234  | 6.4641  | 0.9944 | DKASC |
+| PA [TimesNet-BiLSTM]                       | 3.0366  | 4.3256 | 0.6285 | Solar station site 8 |
+| STL – PA [TimesNet-BiLSTM]                 | 0.4074  | 0.5408 | 0.9942 | Solar station site 8 |
+| VMD – BiLSTM                                 | 3.0854  | 4.4044 | 0.6149 | Solar station site 8 |
+| VMD – TimesNet                               | 3.0298  | 4.3043 | 0.6322 | Solar station site 8 |
+| VMD-PA [TimesNet-BiLSTM]                   | 3.0193| 4.3027 | 0.6325 | Solar station site 8 |
+| STL – VMD – BiLSTM                                 | 0.3162  | 0.4171 | 0.9965 | Solar station site 8 |
+| STL – VMD – TimesNet                               | 0.3166  | 0.4200 | 0.9965 | Solar station site 8 |
+| STL – VMD – PA [TimesNet-BiLSTM] (purpose) | 0.3154  | 0.3061 | 0.9969 | Solar station site 8 |
