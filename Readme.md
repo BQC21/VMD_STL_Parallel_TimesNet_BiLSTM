@@ -83,18 +83,10 @@ The proposed model improved the metrics over [2], considering MAE, RMSE and R²:
 pip install -r requirements.txt
 ```
 
-2. To train a new model
+2. To train and evaluate a new model
 
 ```shell
-python src/app/train.py
-```
-
-The trained model will be saved in /outputs/models/VMD_TimesNet_BiLSTM/.
-
-3. To test the model
-
-```shell
-python src/app/test.py
+python src/app/main.py
 ```
 
 ## References
