@@ -22,14 +22,11 @@ import torch
 import torch.nn as nn
 
 # Utils 
-from utils.helpers import build_loaders, training_amp, build_loaders_for_imf
-from utils.helpers import predict_loader, train_for_each_imf, print_metrics
-from utils.helpers import train_whole_model, reconstruct_model
-from pipeline.metrics import compute_metrics
+from utils.helpers import predict_loader, train_for_each_imf, print_metrics, reconstruct_model
 from visualization.plots import visualize, scatter
 
 # DL model
-from models.TimesNet_BiLSTM import TimesNet_BiLSTM_Parallel, BiLSTM, TimesNet
+from models.TimesNet_BiLSTM import TimesNet_BiLSTM_Parallel
 
 # STL
 from statsmodels.tsa.seasonal import STL
@@ -38,7 +35,6 @@ from statsmodels.tsa.seasonal import STL
 from features.vmd import VMD
 
 # Computational time
-from time import perf_counter
 from types import SimpleNamespace
 from typing import Any, cast
 from tqdm import tqdm
@@ -160,30 +156,18 @@ if CSV_PATH.endswith("figshare_processed.csv"):
     signal_0  = df['Total solar irradiance (W/m2)']
     signal_1  = df['Air temperature  (°C) ']
     signal_2  = df['Relative humidity (%)']
+    signal_3  = df['Power_MW_Trend']
+    signal_4  = df['Power_MW_Seasonal']
+    signal_5 = df['Power_MW_Residual']
+    signal_6 = df[TARGET]
 
-    if STL_CFG.get("enabled", True):
-        signal_3  = df['Power_MW_Trend']
-        signal_4  = df['Power_MW_Seasonal']
-        signal_5 = df['Power_MW_Residual']
-        signal_6 = df[TARGET]
-
-        SIGNALS = [
-            signal_0, signal_1, signal_2, signal_3, signal_4, signal_5, signal_6
-        ]
-        SIGNAL_NAMES = [
-            'Total solar irradiance (W/m2)', 'Air temperature  (°C) ', 'Relative humidity (%)',
-            'Active_Power_Trend', 'Active_Power_Seasonal','Active_Power_Residual', 'Power (MW)'
-        ]
-    else:
-        signal_3 = df[TARGET]
-
-        SIGNALS = [
-            signal_0, signal_1, signal_2, signal_3
-        ]
-        SIGNAL_NAMES = [
-            'Total solar irradiance (W/m2)', 'Air temperature (°C)', 
-            'Relative humidity (%)', 'Power (MW)'
-        ]
+    SIGNALS = [
+        signal_0, signal_1, signal_2, signal_3, signal_4, signal_5, signal_6
+    ]
+    SIGNAL_NAMES = [
+        'Total solar irradiance (W/m2)', 'Air temperature  (°C) ', 'Relative humidity (%)',
+        'Active_Power_Trend', 'Active_Power_Seasonal','Active_Power_Residual', 'Power (MW)'
+    ]
 else: # DKASC:
     signal_0  = df['Wind_Speed']
     signal_1  = df['Weather_Temperature_Celsius']
@@ -193,35 +177,21 @@ else: # DKASC:
     signal_5  = df['Temperature_Probe_1']
     signal_6  = df['Temperature_Probe_2']
     signal_7  = df['Active_Energy_Received']
+    signal_8  = df['Active_Power_Trend']
+    signal_9  = df['Active_Power_Seasonal']
+    signal_10 = df['Active_Power_Residual']
+    signal_11 = df['Active_Power']
 
-    if STL_CFG.get("enabled", True):
-        signal_8  = df['Active_Power_Trend']
-        signal_9  = df['Active_Power_Seasonal']
-        signal_10 = df['Active_Power_Residual']
-        signal_11 = df['Active_Power']
-
-        SIGNALS = [
-            signal_0, signal_1, signal_2, signal_3, signal_4, signal_5,
-            signal_6, signal_7, signal_8, signal_9, signal_10, signal_11
-        ]
-        SIGNAL_NAMES = [
-            'Wind_Speed', 'Weather_Temperature_Celsius', 'Global_Horizontal_Radiation',
-            'Max_Wind_Speed', 'Pyranometer_1', 'Temperature_Probe_1', 'Temperature_Probe_2',
-            'Active_Energy_Received', 'Active_Power_Trend', 'Active_Power_Seasonal',
-            'Active_Power_Residual', 'Active_Power'
-        ]
-    else:
-        signal_8  = df['Active_Power']
-
-        SIGNALS = [
-            signal_0, signal_1, signal_2, signal_3, signal_4, signal_5,
-            signal_6, signal_7, signal_8
-        ]
-        SIGNAL_NAMES = [
-            'Wind_Speed', 'Weather_Temperature_Celsius', 'Global_Horizontal_Radiation',
-            'Max_Wind_Speed', 'Pyranometer_1', 'Temperature_Probe_1', 'Temperature_Probe_2',
-            'Active_Energy_Received', 'Active_Power'
-        ]
+    SIGNALS = [
+        signal_0, signal_1, signal_2, signal_3, signal_4, signal_5,
+        signal_6, signal_7, signal_8, signal_9, signal_10, signal_11
+    ]
+    SIGNAL_NAMES = [
+        'Wind_Speed', 'Weather_Temperature_Celsius', 'Global_Horizontal_Radiation',
+        'Max_Wind_Speed', 'Pyranometer_1', 'Temperature_Probe_1', 'Temperature_Probe_2',
+        'Active_Energy_Received', 'Active_Power_Trend', 'Active_Power_Seasonal',
+        'Active_Power_Residual', 'Active_Power'
+    ]
 
 print(f"Total signals used: {len(SIGNALS)}")
 print(f"Signal names: {SIGNAL_NAMES} \n")
@@ -259,11 +229,7 @@ if VMD_CFG.get("enabled", True):
 
 model_name = CFG["model"]["name"].lower()
 
-if model_name == "bilstm":
-    model = BiLSTM(configs=cast(Any, MODEL_CFG)).to(DEVICE)
-elif model_name == "timesnet":
-    model = TimesNet(configs=cast(Any, MODEL_CFG)).to(DEVICE)
-elif model_name in ["timesnet_bilstm", "timesnet_bilstm_parallel"]:
+if model_name in ["timesnet_bilstm", "timesnet_bilstm_parallel"]:
     model = TimesNet_BiLSTM_Parallel(configs=cast(Any, MODEL_CFG)).to(DEVICE)
 else:
     raise ValueError(f"Model not supported: {CFG['model']['name']}")
@@ -299,62 +265,18 @@ if VMD_CFG.get("enabled", True):
 
     #### Validation metrics ####
 
-    excel_file_path = os.path.join(CFG["training"]["log_dir"], 
-                    CFG["training"]["model_dir"],
-                    CFG["training"]["name_file_valid"])
-
-    print_metrics(Y_real_total, Y_pred_total, excel_file_path)
+    print_metrics(Y_real_total, Y_pred_total)
 
     #### Testing #######
     y_true_inv_ref, y_preds_inv_ref = reconstruct_model(SIGNALS, SIGNAL_NAMES, SEQ_LEN, 
                     PRED_LEN, BATCH_SIZE, TARGET, 
                     DEVICE, CKPT_DIR, u_all, K, model)
-
-    excel_file_path = os.path.join(CFG["training"]["log_dir"], 
-                    CFG["training"]["model_dir"],
-                    CFG["training"]["name_file_test"])
-
-    print_metrics(y_true_inv_ref, y_preds_inv_ref, excel_file_path)
+    
+    print_metrics(y_true_inv_ref, y_preds_inv_ref)
 
     # Plot total prediction (saving optional)
     try:
         visualize(days=1, tt_inv=y_true_inv_ref, tp_inv=y_preds_inv_ref, TARGET=TARGET)
         scatter(y_true_inv_ref, y_preds_inv_ref)
-    except Exception as e:
-        print(f"Warning: final plots could not be generated: {e}")
-
-else: # no VMD
-    #### Training whole model ####
-    y_true_inv, y_pred_inv, model_path,test_dl, y_scaler = train_whole_model(df, model, DEVICE, CKPT_DIR, 
-                    SEQ_LEN, PRED_LEN, CFG["training"]["model_name_file"],
-                    BATCH_SIZE, TARGET, LR, PATIENCE_ES, loss_fn, scaler)
-
-    #### Validation metrics ####
-    excel_file_path = os.path.join(CFG["training"]["log_dir"], 
-                        CFG["training"]["model_dir"],
-                        CFG["training"]["name_file_valid"])
-
-    print_metrics(y_true_inv, y_pred_inv, excel_file_path)
-
-    #### Testing #######
-    model.load_state_dict(torch.load(model_path, 
-                                    map_location=DEVICE))
-    model.eval()
-
-    y_pred_test, y_true_test = predict_loader(model, test_dl, DEVICE)
-    y_pred_inv_test = y_scaler.inverse_transform(y_pred_test.reshape(-1, 1)).ravel()
-    y_true_inv_test = y_scaler.inverse_transform(y_true_test.reshape(-1, 1)).ravel()
-    print(f"shapes of true and predicted values: {y_true_inv_test.shape}, {y_pred_inv_test.shape}")
-
-    excel_file_path = os.path.join(CFG["training"]["log_dir"], 
-                    CFG["training"]["model_dir"],
-                    CFG["training"]["name_file_test"])
-
-    print_metrics(y_true_inv_test, y_pred_inv_test, excel_file_path)
-
-    # Plot total prediction (saving optional)
-    try:
-        visualize(days=1, tt_inv=y_true_inv_test, tp_inv=y_pred_inv_test, TARGET=TARGET)
-        scatter(y_true_inv_test, y_pred_inv_test)
     except Exception as e:
         print(f"Warning: final plots could not be generated: {e}")

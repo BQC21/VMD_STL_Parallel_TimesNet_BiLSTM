@@ -19,7 +19,6 @@ import pandas as pd
 
 # Torch
 import torch
-import torch.nn as nn
 from torch.utils.data import Dataset, DataLoader
 
 # sklearn
@@ -28,21 +27,9 @@ from sklearn.metrics import mean_squared_error
 
 # Utils 
 from pipeline.metrics import compute_metrics
-from visualization.plots import visualize, scatter
-
-# DL model
-from models.TimesNet_BiLSTM import TimesNet_BiLSTM_Parallel, BiLSTM, TimesNet
-
-# STL
-from statsmodels.tsa.seasonal import STL
-
-# VMD
-from features.vmd import VMD
 
 # Computational time
 from time import perf_counter
-from types import SimpleNamespace
-from typing import Any, cast
 from tqdm import tqdm
 
 
@@ -79,42 +66,6 @@ def predict_loader(model, dl, device):
     return np.concatenate(preds, axis=0), np.concatenate(trues, axis=0)
 
 # Processing
-def build_loaders(df, seq_len=48, pred_len=1, batch=64, target_col="Active_Power"):
-
-    """
-    Create Dataloaders for training, validation and testing
-    """
-    n = len(df)
-    n_train = int(round(0.6 * n))
-    n_val = int(round(0.8 * n))
-    print(f"Dataset size: train={n_train} | val={n_val - n_train} | test={n - n_val}")
-
-    train_df = df[:n_train]
-    val_df = df[n_train:n_val]
-    test_df = df[n_val:]
-
-    features = [c for c in train_df.columns if c != target_col]
-
-    scaler_x = StandardScaler()
-    scaler_y = MinMaxScaler() 
-
-    X_train = scaler_x.fit_transform(train_df[features])
-    y_train = scaler_y.fit_transform(train_df[[target_col]])
-    X_val = scaler_x.transform(val_df[features])
-    y_val = scaler_y.transform(val_df[[target_col]])
-    X_test = scaler_x.transform(test_df[features])
-    y_test = scaler_y.transform(test_df[[target_col]])
-
-    Xtr, ytr = make_sequences(X_train, y_train, seq_len=seq_len, pred_len=pred_len)
-    Xva, yva = make_sequences(X_val,   y_val,   seq_len=seq_len, pred_len=pred_len)
-    Xts, yts = make_sequences(X_test,   y_test,   seq_len=seq_len, pred_len=pred_len)
-
-    train_dl = DataLoader(SeqDataset(Xtr, ytr), batch_size=batch, shuffle=True, drop_last=True, pin_memory=True)
-    val_dl   = DataLoader(SeqDataset(Xva, yva), batch_size=batch, shuffle=False, pin_memory=True)
-    test_dl  = DataLoader(SeqDataset(Xts, yts), batch_size=batch, shuffle=False, pin_memory=True)
-
-    return train_dl, val_dl, test_dl, scaler_y, len(features)  
-
 def build_loaders_for_imf(df, imf_col = None,
                         seq_len=48, pred_len=1, 
                         batch=64, target_col="Active_Power"):
@@ -228,8 +179,8 @@ def training_amp(model, device, loss_fn, scaler, optim,
 
     from numpy import mean
 
-    true_val = np.zeros(int(0.2*len(df)-seq_len-pred_len+1))  
-    pred_val = np.zeros(int(0.2*len(df)-seq_len-pred_len+1))  
+    true_val = np.zeros(int(0.2*len(df)-seq_len-pred_len+1))  # DKASC
+    pred_val = np.zeros(int(0.2*len(df)-seq_len-pred_len+1))  # DKASC
     # true_val = np.zeros(6893) # Figshare
     # pred_val = np.zeros(6893) # Figshare
     
@@ -339,7 +290,7 @@ def train_for_each_imf(df, model, u_all, SIGNALS,
         tqdm.write(f"\n=== Training {imf_col} ===")
 
         # Load sequences
-        train_dl, val_dl, test_dl, y_scaler, __ = build_loaders_for_imf(
+        train_dl, val_dl, __, y_scaler, __ = build_loaders_for_imf(
             df=modes_df, imf_col=imf_col,
             seq_len=SEQ_LEN, pred_len=PRED_LEN, 
             batch=BATCH_SIZE, target_col=TARGET
@@ -439,10 +390,6 @@ def reconstruct_model(SIGNALS, SIGNAL_NAMES, SEQ_LEN,
 
     return y_true_inv_ref, y_preds_inv_ref
 
-#####################################
-# train whole model
-#####################################
-def train_whole_model(df, model, DEVICE, CKPT_DIR, 
                     SEQ_LEN, PRED_LEN, model_name_file,
                     BATCH_SIZE, TARGET, 
                     LR, PATIENCE_ES, loss_fn, scaler):
@@ -476,14 +423,7 @@ def train_whole_model(df, model, DEVICE, CKPT_DIR,
 #####################################
 # plot metrics
 #####################################
-def print_metrics(Y_real_total, Y_pred_total, excel_file_path):
-    abs_errors = np.abs(Y_real_total - Y_pred_total)
-    squared_errors = (Y_real_total - Y_pred_total)**2
-    df_results = pd.DataFrame({'True_Values': Y_real_total,
-                                'Predicted_Values': Y_pred_total,
-                                'Absolute_Error': abs_errors,
-                                'Squared_Error': squared_errors})
-    df_results.to_excel(excel_file_path, index=False)
+def print_metrics(Y_real_total, Y_pred_total):
 
     # Compute metrics (RMSE) after all IMFs
     R2, MAE, RMSE = compute_metrics(Y_real_total, Y_pred_total)
