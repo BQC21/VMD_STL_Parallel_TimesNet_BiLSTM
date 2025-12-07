@@ -390,36 +390,6 @@ def reconstruct_model(SIGNALS, SIGNAL_NAMES, SEQ_LEN,
 
     return y_true_inv_ref, y_preds_inv_ref
 
-                    SEQ_LEN, PRED_LEN, model_name_file,
-                    BATCH_SIZE, TARGET, 
-                    LR, PATIENCE_ES, loss_fn, scaler):
-    # Load sequences
-    train_dl, val_dl, test_dl, y_scaler, __ = build_loaders(
-        df=df, seq_len=SEQ_LEN, pred_len=PRED_LEN, 
-        batch=BATCH_SIZE, target_col=TARGET
-    )
-
-    # -------- Optimizer
-    optim = torch.optim.Adam(model.parameters(), lr=LR, weight_decay=1e-4)
-
-    # Use a filename that doesn't depend on VMD-specific variables when VMD is disabled
-    model_path = os.path.join(CKPT_DIR, model_name_file)
-
-    # Training with AMP + early stopping
-    __, __, stats_t, vt, vp = training_amp(
-        model=model, device=str(DEVICE), 
-        loss_fn=loss_fn, scaler=scaler,
-        optim=optim, train_dl=train_dl, val_dl=val_dl,
-        MODEL_PATH=model_path, df = df, 
-        seq_len=SEQ_LEN, pred_len=PRED_LEN,
-        patience=PATIENCE_ES, verbose=True
-    )
-    y_pred_inv = y_scaler.inverse_transform(vp.reshape(-1, 1)).ravel()
-    y_true_inv = y_scaler.inverse_transform(vt.reshape(-1, 1)).ravel()
-    print(f"shapes of true and predicted values: {y_true_inv.shape}, {y_pred_inv.shape}")
-
-    return y_true_inv, y_pred_inv, model_path, test_dl, y_scaler
-
 #####################################
 # plot metrics
 #####################################

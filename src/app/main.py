@@ -22,7 +22,7 @@ import torch
 import torch.nn as nn
 
 # Utils 
-from utils.helpers import predict_loader, train_for_each_imf, print_metrics, reconstruct_model
+from utils.helpers import train_for_each_imf, print_metrics, reconstruct_model
 from visualization.plots import visualize, scatter
 
 # DL model
