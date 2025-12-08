@@ -24,7 +24,7 @@ stl:
 
 # VMD decomposition parameters
 vmd:
-  alpha: 0.075     # bandwidth constraint
+  alpha: 100     # bandwidth constraint
   tau: 0
   k: 3        # number of modes
   dc: 0
