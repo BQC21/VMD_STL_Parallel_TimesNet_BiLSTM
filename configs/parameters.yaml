@@ -11,9 +11,7 @@ experiment:
 # Dataset configuration
 data:
   root_path: "data/dataset_Laundry_modified.csv"
-  # root_path: "data/dataset_figshare_processed.csv"
   target: "Active_Power" # DKSAC
-  # target: "Power (MW)" # figshare
   sequence_length: 48
   prediction_length: 1
 
@@ -22,30 +20,18 @@ stl:
   enabled: true
   period: 9 
 
-# VMD decomposition parameters
-vmd:
-  alpha: 0.025     # bandwidth constraint
-  tau: 0
-  k: 3        # number of modes
-  dc: 0
-  init: 1
-  tol: 1e-7
-  lambda_param: 75  # Lagrange multiplier for reconstruction constraint
-  enabled: true
-
 # Model configuration
 model:
   name: "TimesNet_BiLSTM"
   input_features: 11 # switch to 8 if STL are disabled (DKASC)
-  # input_features: 6 # switch to 3 if STL are disabled (figshare)
   output_features: 1
 
   timesnet:
     d_model: 32
     d_ff: 8
-    num_kernels: 9
+    num_kernels: 5
     num_times_blocks: 2
-    top_k: 1
+    top_k: 3
     dropout: 0.1188
 
   bilstm:
@@ -59,21 +45,9 @@ training:
   loss_function: "mse"
   metrics: ["mae", "rmse", "r2"]
 
-  # checkpoint_dir: "outputs/Figshare/models"
   checkpoint_dir: "outputs/Yulara/models"
-  
-  model_dir: "STL_VMD_TimesNet_BiLSTM"
-  
-  # log_dir: "outputs/Figshare/logs"
-  log_dir: "outputs/Yulara/logs"
-
-  # plot_dir: "outputs/Figshare/plots"
-  plot_dir: "outputs/Yulara/plots"
-
-  name_file_valid: "Predictions_STL_VMD_TimesNet_BiLSTM_valid.xlsx"
-  name_file_test: "Predictions_STL_VMD_TimesNet_BiLSTM_test.xlsx"
-
-  model_name_file: "STL_VMD_TimesNet_BiLSTM_best_model.pt"
+  model_dir: "STL_TimesNet_BiLSTM"
+  model_name_file: "STL_TimesNet_BiLSTM_best_model.pt"
 
   save_best_only: true
   verbose: true
