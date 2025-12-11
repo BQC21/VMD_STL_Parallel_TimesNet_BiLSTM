@@ -10,10 +10,10 @@ experiment:
 
 # Dataset configuration
 data:
-  root_path: "data/dataset_Laundry_modified.csv"
-  # root_path: "data/dataset_figshare_processed.csv"
-  target: "Active_Power" # DKSAC
-  # target: "Power (MW)" # figshare
+  # root_path: "data/dataset_Laundry_modified.csv"
+  root_path: "data/dataset_figshare_processed.csv"
+  # target: "Active_Power" # DKSAC
+  target: "Power (MW)" # figshare
   sequence_length: 48
   prediction_length: 1
 
@@ -24,7 +24,7 @@ stl:
 
 # VMD decomposition parameters
 vmd:
-  alpha: 50000     # bandwidth constraint
+  alpha: 500     # bandwidth constraint
   tau: 0
   k: 3        # number of modes
   dc: 0
@@ -36,8 +36,8 @@ vmd:
 # Model configuration
 model:
   name: "TimesNet_BiLSTM"
-  input_features: 11 
-  # input_features: 6 
+  # input_features: 11 
+  input_features: 6 
   output_features: 1
 
   timesnet:
@@ -59,8 +59,8 @@ training:
   loss_function: "mse"
   metrics: ["mae", "rmse", "r2"]
 
-  # checkpoint_dir: "outputs/Figshare/models"
-  checkpoint_dir: "outputs/Yulara/models"
+  checkpoint_dir: "outputs/Figshare/models"
+  # checkpoint_dir: "outputs/Yulara/models"
   
   model_dir: "STL_VMD_TimesNet_BiLSTM"
 

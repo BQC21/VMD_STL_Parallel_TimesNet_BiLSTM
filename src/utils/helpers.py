@@ -179,10 +179,10 @@ def training_amp(model, device, loss_fn, scaler, optim,
 
     from numpy import mean
 
-    true_val = np.zeros(int(0.2*len(df)-seq_len-pred_len+1))  # DKASC
-    pred_val = np.zeros(int(0.2*len(df)-seq_len-pred_len+1))  # DKASC
-    # true_val = np.zeros(6893) # Figshare
-    # pred_val = np.zeros(6893) # Figshare
+    # true_val = np.zeros(int(0.2*len(df)-seq_len-pred_len+1))  # DKASC
+    # pred_val = np.zeros(int(0.2*len(df)-seq_len-pred_len+1))  # DKASC
+    true_val = np.zeros(6893) # Figshare
+    pred_val = np.zeros(6893) # Figshare
     
     loss_train, loss_valid = [], []
     best_val = np.inf
