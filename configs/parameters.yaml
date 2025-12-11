@@ -35,7 +35,7 @@ vmd:
 
 # Model configuration
 model:
-  name: "BiLSTM"
+  name: "TimesNet_BiLSTM"
   input_features: 8 # switch to 8 if STL are disabled (DKASC)
   # input_features: 6 # switch to 3 if STL are disabled (figshare)
   output_features: 1
@@ -62,7 +62,7 @@ training:
   # checkpoint_dir: "outputs/Figshare/models"
   checkpoint_dir: "outputs/Yulara/models"
   
-  model_dir: "BiLSTM"
+  model_dir: "TimesNet_BiLSTM"
   
   # log_dir: "outputs/Figshare/logs"
   log_dir: "outputs/Yulara/logs"
@@ -70,10 +70,10 @@ training:
   # plot_dir: "outputs/Figshare/plots"
   plot_dir: "outputs/Yulara/plots"
 
-  name_file_valid: "Predictions_VMD_BiLSTM_valid.xlsx"
-  name_file_test: "Predictions_VMD_BiLSTM_test.xlsx"
+  name_file_valid: "Predictions_STL_VMD_TimesNet_BiLSTM_valid.xlsx"
+  name_file_test: "Predictions_STL_VMD_TimesNet_BiLSTM_test.xlsx"
 
-  model_name_file: "VMD_BiLSTM_best_model.pt"
+  model_name_file: "STL_VMD_TimesNet_BiLSTM_best_model.pt"
 
   save_best_only: true
   verbose: true
