@@ -19,7 +19,6 @@ import pandas as pd
 
 # Torch
 import torch
-import torch.nn as nn
 from torch.utils.data import Dataset, DataLoader
 
 # sklearn
@@ -28,21 +27,9 @@ from sklearn.metrics import mean_squared_error
 
 # Utils 
 from pipeline.metrics import compute_metrics
-from visualization.plots import visualize, scatter
-
-# DL model
-from models.TimesNet_BiLSTM import TimesNet_BiLSTM_Parallel, BiLSTM, TimesNet
-
-# STL
-from statsmodels.tsa.seasonal import STL
-
-# VMD
-from features.vmd import VMD
 
 # Computational time
 from time import perf_counter
-from types import SimpleNamespace
-from typing import Any, cast
 from tqdm import tqdm
 
 
@@ -228,10 +215,10 @@ def training_amp(model, device, loss_fn, scaler, optim,
 
     from numpy import mean
 
-    # true_val = np.zeros(int(0.2*len(df)-seq_len-pred_len+1))  
-    # pred_val = np.zeros(int(0.2*len(df)-seq_len-pred_len+1))  
-    true_val = np.zeros(6893) # Figshare
-    pred_val = np.zeros(6893) # Figshare
+    true_val = np.zeros(int(0.2*len(df)-seq_len-pred_len+1))  
+    pred_val = np.zeros(int(0.2*len(df)-seq_len-pred_len+1))  
+    # true_val = np.zeros(6893) # Figshare
+    # pred_val = np.zeros(6893) # Figshare
     
     loss_train, loss_valid = [], []
     best_val = np.inf
@@ -459,7 +446,7 @@ def train_whole_model(df, model, DEVICE, CKPT_DIR,
     model_path = os.path.join(CKPT_DIR, model_name_file)
 
     # Training with AMP + early stopping
-    __, __, stats_t, vt, vp = training_amp(
+    __, __, __, vt, vp = training_amp(
         model=model, device=str(DEVICE), 
         loss_fn=loss_fn, scaler=scaler,
         optim=optim, train_dl=train_dl, val_dl=val_dl,

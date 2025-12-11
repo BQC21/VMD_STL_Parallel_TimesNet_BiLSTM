@@ -22,10 +22,7 @@ import torch
 import torch.nn as nn
 
 # Utils 
-from utils.helpers import build_loaders, training_amp, build_loaders_for_imf
-from utils.helpers import predict_loader, train_for_each_imf, print_metrics
-from utils.helpers import train_whole_model, reconstruct_model
-from pipeline.metrics import compute_metrics
+from utils.helpers import train_for_each_imf, print_metrics, reconstruct_model
 from visualization.plots import visualize, scatter
 
 # DL model
@@ -38,7 +35,6 @@ from statsmodels.tsa.seasonal import STL
 from features.vmd import VMD
 
 # Computational time
-from time import perf_counter
 from types import SimpleNamespace
 from typing import Any, cast
 from tqdm import tqdm
@@ -283,78 +279,41 @@ print(f"Initial Y_real_total shape: {Y_real_total.shape} \n")
 
 tqdm.write(f"\n=== Training ===")
 
-if VMD_CFG.get("enabled", True):
-    #### Training for each IMF ####
-    result = train_for_each_imf(df, model, u_all, SIGNALS, 
-                                SIGNAL_NAMES, DEVICE, CKPT_DIR, 
-                                SEQ_LEN, PRED_LEN, 
-                                BATCH_SIZE, TARGET, 
-                                K, Y_pred_total, Y_real_total,
-                                LR, EPOCHS, PATIENCE_ES, loss_fn, scaler)
+#### Training for each IMF ####
+result = train_for_each_imf(df, model, u_all, SIGNALS, 
+                            SIGNAL_NAMES, DEVICE, CKPT_DIR, 
+                            SEQ_LEN, PRED_LEN, 
+                            BATCH_SIZE, TARGET, 
+                            K, Y_pred_total, Y_real_total,
+                            LR, EPOCHS, PATIENCE_ES, loss_fn, scaler)
 
-    if result is None or not isinstance(result, (list, tuple)) or len(result) < 4:
-        raise ValueError("train_for_each_imf did not return expected values (models, Y_real_total, Y_pred_total, ...)")
+if result is None or not isinstance(result, (list, tuple)) or len(result) < 4:
+    raise ValueError("train_for_each_imf did not return expected values (models, Y_real_total, Y_pred_total, ...)")
 
-    models, Y_real_total, Y_pred_total, _ = result
+models, Y_real_total, Y_pred_total, _ = result
 
-    #### Validation metrics ####
+#### Validation metrics ####
 
-    excel_file_path = os.path.join(CFG["training"]["log_dir"], 
-                    CFG["training"]["model_dir"],
-                    CFG["training"]["name_file_valid"])
+excel_file_path = os.path.join(CFG["training"]["log_dir"], 
+                CFG["training"]["model_dir"],
+                CFG["training"]["name_file_valid"])
 
-    print_metrics(Y_real_total, Y_pred_total, excel_file_path)
+print_metrics(Y_real_total, Y_pred_total, excel_file_path)
 
-    #### Testing #######
-    y_true_inv_ref, y_preds_inv_ref = reconstruct_model(SIGNALS, SIGNAL_NAMES, SEQ_LEN, 
-                    PRED_LEN, BATCH_SIZE, TARGET, 
-                    DEVICE, CKPT_DIR, u_all, K, model)
+#### Testing #######
+y_true_inv_ref, y_preds_inv_ref = reconstruct_model(SIGNALS, SIGNAL_NAMES, SEQ_LEN, 
+                PRED_LEN, BATCH_SIZE, TARGET, 
+                DEVICE, CKPT_DIR, u_all, K, model)
 
-    excel_file_path = os.path.join(CFG["training"]["log_dir"], 
-                    CFG["training"]["model_dir"],
-                    CFG["training"]["name_file_test"])
+excel_file_path = os.path.join(CFG["training"]["log_dir"], 
+                CFG["training"]["model_dir"],
+                CFG["training"]["name_file_test"])
 
-    print_metrics(y_true_inv_ref, y_preds_inv_ref, excel_file_path)
+print_metrics(y_true_inv_ref, y_preds_inv_ref, excel_file_path)
 
-    # Plot total prediction (saving optional)
-    try:
-        visualize(days=1, tt_inv=y_true_inv_ref, tp_inv=y_preds_inv_ref, TARGET=TARGET)
-        scatter(y_true_inv_ref, y_preds_inv_ref)
-    except Exception as e:
-        print(f"Warning: final plots could not be generated: {e}")
-
-else: # no VMD
-    #### Training whole model ####
-    y_true_inv, y_pred_inv, model_path,test_dl, y_scaler = train_whole_model(df, model, DEVICE, CKPT_DIR, 
-                    SEQ_LEN, PRED_LEN, CFG["training"]["model_name_file"],
-                    BATCH_SIZE, TARGET, LR, PATIENCE_ES, loss_fn, scaler)
-
-    #### Validation metrics ####
-    excel_file_path = os.path.join(CFG["training"]["log_dir"], 
-                        CFG["training"]["model_dir"],
-                        CFG["training"]["name_file_valid"])
-
-    print_metrics(y_true_inv, y_pred_inv, excel_file_path)
-
-    #### Testing #######
-    model.load_state_dict(torch.load(model_path, 
-                                    map_location=DEVICE))
-    model.eval()
-
-    y_pred_test, y_true_test = predict_loader(model, test_dl, DEVICE)
-    y_pred_inv_test = y_scaler.inverse_transform(y_pred_test.reshape(-1, 1)).ravel()
-    y_true_inv_test = y_scaler.inverse_transform(y_true_test.reshape(-1, 1)).ravel()
-    print(f"shapes of true and predicted values: {y_true_inv_test.shape}, {y_pred_inv_test.shape}")
-
-    excel_file_path = os.path.join(CFG["training"]["log_dir"], 
-                    CFG["training"]["model_dir"],
-                    CFG["training"]["name_file_test"])
-
-    print_metrics(y_true_inv_test, y_pred_inv_test, excel_file_path)
-
-    # Plot total prediction (saving optional)
-    try:
-        visualize(days=1, tt_inv=y_true_inv_test, tp_inv=y_pred_inv_test, TARGET=TARGET)
-        scatter(y_true_inv_test, y_pred_inv_test)
-    except Exception as e:
-        print(f"Warning: final plots could not be generated: {e}")
+# Plot total prediction (saving optional)
+try:
+    visualize(days=1, tt_inv=y_true_inv_ref, tp_inv=y_preds_inv_ref, TARGET=TARGET)
+    scatter(y_true_inv_ref, y_preds_inv_ref)
+except Exception as e:
+    print(f"Warning: final plots could not be generated: {e}")

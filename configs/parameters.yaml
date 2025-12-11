@@ -10,10 +10,10 @@ experiment:
 
 # Dataset configuration
 data:
-  # root_path: "data/Yulara/dataset_Laundry_modified.csv"
-  root_path: "data/Figshare/dataset_figshare_processed.csv"
-  # target: "Active_Power" # DKSAC
-  target: "Power (MW)" # figshare
+  root_path: "data/Yulara/dataset_Laundry_modified.csv"
+  # root_path: "data/Figshare/dataset_figshare_processed.csv"
+  target: "Active_Power" # DKSAC
+  # target: "Power (MW)" # figshare
   sequence_length: 48
   prediction_length: 1
 
@@ -24,20 +24,20 @@ stl:
 
 # VMD decomposition parameters
 vmd:
-  alpha: 0.025     # bandwidth constraint
+  alpha: 0.5     # bandwidth constraint
   tau: 0
   k: 3        # number of modes
   dc: 0
   init: 1
   tol: 1e-7
   lambda_param: 75  # Lagrange multiplier for reconstruction constraint
-  enabled: false
+  enabled: true
 
 # Model configuration
 model:
   name: "BiLSTM"
-  # input_features: 11 # switch to 8 if STL are disabled (DKASC)
-  input_features: 3 # switch to 3 if STL are disabled (figshare)
+  input_features: 8 # switch to 8 if STL are disabled (DKASC)
+  # input_features: 6 # switch to 3 if STL are disabled (figshare)
   output_features: 1
 
   timesnet:
@@ -59,21 +59,21 @@ training:
   loss_function: "mse"
   metrics: ["mae", "rmse", "r2"]
 
-  checkpoint_dir: "outputs/Figshare/models"
-  # checkpoint_dir: "outputs/Yulara/models"
+  # checkpoint_dir: "outputs/Figshare/models"
+  checkpoint_dir: "outputs/Yulara/models"
   
   model_dir: "BiLSTM"
   
-  log_dir: "outputs/Figshare/logs"
-  # log_dir: "outputs/Yulara/logs"
+  # log_dir: "outputs/Figshare/logs"
+  log_dir: "outputs/Yulara/logs"
 
-  plot_dir: "outputs/Figshare/plots"
-  # plot_dir: "outputs/Yulara/plots"
+  # plot_dir: "outputs/Figshare/plots"
+  plot_dir: "outputs/Yulara/plots"
 
-  name_file_valid: "Predictions_BiLSTM_valid.xlsx"
-  name_file_test: "Predictions_BiLSTM_test.xlsx"
+  name_file_valid: "Predictions_VMD_BiLSTM_valid.xlsx"
+  name_file_test: "Predictions_VMD_BiLSTM_test.xlsx"
 
-  model_name_file: "BiLSTM_best_model.pt"
+  model_name_file: "VMD_BiLSTM_best_model.pt"
 
   save_best_only: true
   verbose: true
