@@ -49,7 +49,7 @@ Parameters can be modified in `/configs/parameters.yaml` for new experiments.
 
 ## Dispersion formula
 
-$$\frac{\frac{|MAE_paper-MAE_replica|}{MAE_paper}+\frac{|RMSE_paper-RMSE_replica|}{RMSE_paper}+\frac{|R^{2}_paper-R^{2}_replica|}{R^{2}_paper}}{3}$$
+$$\frac{\frac{|MAE_{paper}-MAE_{replica}|}{MAE_{paper}}+\frac{|RMSE_{paper}-RMSE_{replica}|}{RMSE_{paper}}+\frac{|R^{2}_{paper}-R^{2}_{replica}|}{R^{2}_{paper}}}{3}$$
 
 ### Outputs
 
