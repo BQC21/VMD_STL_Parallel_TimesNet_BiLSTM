@@ -24,7 +24,7 @@ stl:
 
 # VMD decomposition parameters
 vmd:
-  alpha: 0.5     # bandwidth constraint
+  alpha: 2000     # bandwidth constraint
   tau: 0
   k: 3        # number of modes
   dc: 0
@@ -37,7 +37,7 @@ vmd:
 model:
   name: "TimesNet_BiLSTM"
   input_features: 8 # switch to 8 if STL are disabled (DKASC)
-  # input_features: 6 # switch to 3 if STL are disabled (figshare)
+  # input_features: 3 # switch to 3 if STL are disabled (figshare)
   output_features: 1
 
   timesnet:
@@ -62,7 +62,7 @@ training:
   # checkpoint_dir: "outputs/Figshare/models"
   checkpoint_dir: "outputs/Yulara/models"
   
-  model_dir: "TimesNet_BiLSTM"
+  model_dir: "VMD_TimesNet_BiLSTM"
   
   # log_dir: "outputs/Figshare/logs"
   log_dir: "outputs/Yulara/logs"
@@ -70,10 +70,10 @@ training:
   # plot_dir: "outputs/Figshare/plots"
   plot_dir: "outputs/Yulara/plots"
 
-  name_file_valid: "Predictions_STL_VMD_TimesNet_BiLSTM_valid.xlsx"
-  name_file_test: "Predictions_STL_VMD_TimesNet_BiLSTM_test.xlsx"
+  name_file_valid: "Predictions_VMD_TimesNet_BiLSTM_valid.xlsx"
+  name_file_test: "Predictions_VMD_TimesNet_BiLSTM_test.xlsx"
 
-  model_name_file: "STL_VMD_TimesNet_BiLSTM_best_model.pt"
+  model_name_file: "VMD_TimesNet_BiLSTM_best_model.pt"
 
   save_best_only: true
   verbose: true
