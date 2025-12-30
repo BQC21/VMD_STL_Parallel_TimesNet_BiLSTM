@@ -49,7 +49,7 @@ Parameters can be modified in `/configs/parameters.yaml` for new experiments.
 
 ## Dispersion formula
 
-$\% deviation = \frac{\frac{|MAE_paper-MAE_replica|}{MAE_paper}+\frac{|RMSE_paper-RMSE_replica|}{RMSE_paper}+\frac{|R^{2}_paper-R^{2}_replica|}{R^{2}_paper}}{3}$
+$$\% deviation = \frac{\frac{|MAE_paper-MAE_replica|}{MAE_paper}+\frac{|RMSE_paper-RMSE_replica|}{RMSE_paper}+\frac{|R^{2}_paper-R^{2}_replica|}{R^{2}_paper}}{3}$$
 
 ### Outputs
 
@@ -65,7 +65,7 @@ $\% deviation = \frac{\frac{|MAE_paper-MAE_replica|}{MAE_paper}+\frac{|RMSE_pape
 **For 11 kernels**:
 
 | top_k   | MAE     | RMSE    | R²     | deviation (%) |
-|---------|---------|---------|--------|
+|---------|---------|---------|--------|--------|
 | 1       | 4.9330 | 9.0044 | 0.9892 | 3.79 |
 | 2       | 6.0531 | 9.4741 | 0.9880 | 6.28 |
 | 3       | 5.6637 | 9.1846 | 0.9887 | 4.76 |
